@@ -199,10 +199,8 @@ def _dispatch(args: argparse.Namespace) -> int:
         # Generated graphics are cut to the length of their beat, so they need
         # the timeline. Narration is already paid for and cached.
         speech = pipeline.narrate(run, board, log=_log)
-        spans = {
-            t.beat.id: t.duration
-            for t in pipeline.timings_for(run, board, speech, log=_log)
-        }
+        beat_timings = pipeline.timings_for(run, board, speech, log=_log)
+        spans = {t.beat.id: (t.start, t.duration) for t in beat_timings}
 
         # A beat may carry one pick or several; normalise to a list either way.
         wanted: dict[int, list[dict]] = {}
@@ -219,7 +217,18 @@ def _dispatch(args: argparse.Namespace) -> int:
         for beat_id in cards:
             resolved.setdefault(beat_id, []).append(
                 broll.fallback_card(
-                    run, by_id[beat_id], duration=spans.get(beat_id, 4.0), log=_log
+                    run,
+                    by_id[beat_id],
+                    duration=spans.get(beat_id, (0.0, 4.0))[1],
+                    start=spans.get(beat_id, (0.0, 4.0))[0],
+                    words=[
+                        w
+                        for w in speech.words
+                        if spans.get(beat_id, (0.0, 4.0))[0]
+                        <= w.start
+                        < sum(spans.get(beat_id, (0.0, 4.0)))
+                    ],
+                    log=_log,
                 )
             )
 

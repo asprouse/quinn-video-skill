@@ -205,6 +205,7 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
             )
 
     report.findings.extend(_staging_findings(run, words))
+    report.findings.extend(_footage_findings(run))
 
     # The first two seconds decide everything, so they get their own check.
     opening = [f for f in report.frames if f["at"] <= 2.0]
@@ -216,6 +217,32 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
     log(f"grade: {len(report.blockers)} blockers, {len(report.findings)} findings")
     return report
+
+
+def _footage_findings(run: Run) -> list[Finding]:
+    """Catch a clip used more than once.
+
+    A repeated shot is the most obvious tell that the footage ran thin, and
+    it is invisible to every pixel measurement here -- each frame is fine on
+    its own. Only the shot list shows it.
+    """
+    picks = run.state().get("picks") or {}
+    seen: dict[str, list[str]] = {}
+    for beat_id, paths in sorted(picks.items()):
+        for path in paths if isinstance(paths, list) else [paths]:
+            seen.setdefault(Path(path).name, []).append(str(beat_id))
+
+    findings = []
+    for name, beats in seen.items():
+        if len(beats) > 1:
+            findings.append(
+                Finding(
+                    "warn", None, "repeated footage",
+                    f"{name} is used on beats {', '.join(beats)}",
+                    "pick a distinct clip, or replace the beat with a generated graphic",
+                )
+            )
+    return findings
 
 
 def _staging_findings(run: Run, words: list[Word]) -> list[Finding]:

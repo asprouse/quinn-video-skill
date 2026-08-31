@@ -162,7 +162,13 @@ def fetch_picks(
 
 
 def fallback_card(
-    run: Run, beat: Beat, *, duration: float = 4.0, log: Log = _noop
+    run: Run,
+    beat: Beat,
+    *,
+    duration: float = 4.0,
+    words: list | None = None,
+    start: float = 0.0,
+    log: Log = _noop,
 ) -> Path:
     """Generate this beat's graphic: an animated diagram, or a designed card."""
     if beat.overlay and beat.overlay.kind == "ladder-angle":
@@ -170,9 +176,11 @@ def fallback_card(
 
         dest = run.broll_dir / f"diagram-beat-{beat.id}.mp4"
         if not (dest.exists() and dest.stat().st_size > 0):
+            cues = _diagram_cues(beat, words or [], start, duration)
             log(f"beat {beat.id}: drawing the {beat.overlay.ratio[0]}:"
-                f"{beat.overlay.ratio[1]} diagram ({duration:.1f}s)")
-            render_ladder_angle(dest, duration, ratio=beat.overlay.ratio)
+                f"{beat.overlay.ratio[1]} diagram ({duration:.1f}s), "
+                + ", ".join(f"{k} @{v:.2f}s" for k, v in sorted(cues.items())))
+            render_ladder_angle(dest, duration, ratio=beat.overlay.ratio, cues=cues)
         return dest
 
     dest = run.broll_dir / f"card-beat-{beat.id}.jpg"
@@ -184,6 +192,48 @@ def fallback_card(
     graphics.render_card(text, dest, kicker=kicker)
     log(f"beat {beat.id}: no footage cleared the bar — designed card instead")
     return dest
+
+
+def _diagram_cues(beat: Beat, words: list, start: float, duration: float) -> dict[str, float]:
+    """Anchor the drawing's phases to the words that name them.
+
+    Without this the diagram runs to its own clock and annotates the ratio
+    seconds before the narration says it, which reads as the graphic and the
+    voice talking past each other.
+    """
+    from .align import normalise
+
+    spoken = [(normalise(w.word), w.start - start) for w in words]
+    number_words = {
+        1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+    }
+    up, out = beat.overlay.ratio if beat.overlay else (4, 1)
+
+    def find(target: str, after: float = -1.0) -> float | None:
+        for token, at in spoken:
+            if token == target and at > after:
+                return at
+        return None
+
+    # The ratio is usually spoken last ("...it's four to one"), and "one" often
+    # occurs earlier in the sentence too, so the run is searched after the rise.
+    rise = find(number_words.get(up, str(up)))
+    run = find(number_words.get(out, str(out)), after=rise if rise is not None else -1.0)
+    ladder = find("base") or find("ladder")
+
+    cues: dict[str, float] = {"structure": 0.15}
+    if ladder is not None:
+        cues["ladder"] = max(0.4, ladder - 0.5)
+    if rise is not None:
+        cues["rise"] = max(cues.get("ladder", 0.4) + 0.3, rise - 0.25)
+    if run is not None:
+        cues["run"] = max(cues.get("rise", 1.0) + 0.25, run - 0.2)
+
+    # Leave the finished drawing on screen rather than resolving at the buzzer.
+    for key in ("rise", "run"):
+        if key in cues:
+            cues[key] = min(cues[key], duration - 0.7)
+    return cues
 
 
 def _headline(beat: Beat) -> str:

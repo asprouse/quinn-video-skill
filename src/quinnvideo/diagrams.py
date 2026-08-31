@@ -98,41 +98,81 @@ def _dimension(
             draw.line([(x, y - tick), (x, y + tick)], fill=colour, width=5)
 
 
+def _hatch(draw, x0, y0, x1, y1, *, spacing, length, colour, vertical=False):
+    """Engineering-drawing hatching, for the solid side of a surface."""
+    if vertical:
+        y = y0
+        while y < y1:
+            draw.line([(x0, y), (x0 - length, y + length)], fill=colour, width=3)
+            y += spacing
+    else:
+        x = x0
+        while x < x1:
+            draw.line([(x, y0), (x - length, y0 + length)], fill=colour, width=3)
+            x += spacing
+
+
+def _arrow(draw, tip, direction, *, size, colour):
+    """A small solid arrowhead at ``tip`` pointing along ``direction``."""
+    dx, dy = direction
+    px, py = -dy, dx
+    draw.polygon(
+        [
+            tip,
+            (tip[0] - dx * size + px * size * 0.45, tip[1] - dy * size + py * size * 0.45),
+            (tip[0] - dx * size - px * size * 0.45, tip[1] - dy * size - py * size * 0.45),
+        ],
+        fill=colour,
+    )
+
+
 def render_ladder_angle(
     dest: Path,
     duration: float,
     *,
     fps: int = FPS,
     ratio: tuple[int, int] = (4, 1),
+    cues: dict[str, float] | None = None,
 ) -> Path:
-    """Animate the 4-to-1 rule: a ladder swinging out to its correct angle."""
+    """Animate the 4-to-1 rule: a ladder swinging out to its correct angle.
+
+    ``cues`` maps phase names -- structure, ladder, rise, run -- to seconds
+    from the start of the shot. Pass the times of the words that name them and
+    the drawing lands on the narration instead of running to its own clock,
+    which is the difference between a diagram and a decoration.
+    """
     from .ff import VideoWriter
 
     up, out = ratio
-    title = fonts.load(fonts.DISPLAY, 132 * SS)
-    label = fonts.load(fonts.DISPLAY, 74 * SS)
-    kicker = fonts.load(fonts.CAPTION, 34 * SS)
-    note = fonts.load(fonts.CAPTION, 33 * SS)
+    cues = cues or {}
+    at_structure = cues.get("structure", 0.15)
+    at_ladder = cues.get("ladder", 0.55)
+    at_rise = cues.get("rise", 1.25)
+    at_run = cues.get("run", 1.70)
 
-    # Everything lives above y=1000: the captions occupy the band below it and
-    # the presenter sits in the bottom-right corner.
-    ground_y = 900
-    wall_x = 790
-    rise = 560
+    title = fonts.load(fonts.DISPLAY, 128 * SS)
+    label = fonts.load(fonts.DISPLAY, 72 * SS)
+    kicker = fonts.load(fonts.CAPTION, 33 * SS)
+    small = fonts.load(fonts.CAPTION, 30 * SS)
+
+    # Everything sits above y=1000: the caption line owns the band below it and
+    # the presenter stands in the bottom-right corner.
+    # Fills the band between the title and the caption line. The drawing is
+    # the subject of the shot, so it gets the space rather than sitting in a
+    # corner of it.
+    ground_y, wall_x, rise = 930, 690, 610
     run = round(rise * out / up)
     top = (wall_x, ground_y - rise)
-    base_final = (wall_x - run, ground_y)
+    base_x = wall_x - run
+    angle = math.degrees(math.atan2(rise, run))
 
-    # Background gradient, drawn once.
     backdrop = Image.new("RGB", (WIDTH * SS, HEIGHT * SS), BG_TOP)
     bd = ImageDraw.Draw(backdrop)
     for y in range(0, HEIGHT * SS, 4):
         k = y / (HEIGHT * SS)
-        bd.line(
-            [(0, y), (WIDTH * SS, y)],
-            fill=tuple(round(BG_TOP[i] + (BG_BOTTOM[i] - BG_TOP[i]) * k) for i in range(3)),
-            width=4,
-        )
+        bd.line([(0, y), (WIDTH * SS, y)],
+                fill=tuple(round(BG_TOP[i] + (BG_BOTTOM[i] - BG_TOP[i]) * k) for i in range(3)),
+                width=4)
 
     frames = max(1, round(duration * fps))
     with VideoWriter(dest, fps) as writer:
@@ -140,56 +180,72 @@ def render_ladder_angle(
             t = n / fps
             canvas = backdrop.copy()
             d = ImageDraw.Draw(canvas)
-            s = lambda v: v * SS  # noqa: E731 - local shorthand for readability
+            def s(v):
+                return v * SS
 
-            # Title.
             fade = _phase(t, 0.0, 0.30)
             if fade > 0.01:
-                d.text((s(110), s(150)), "THE RULE", font=kicker,
+                d.text((s(96), s(148)), "THE RULE", font=kicker,
                        fill=tuple(round(c * fade) for c in HI_VIS[:3]))
-                d.text((s(110), s(198)), f"{up} : {out}", font=title,
+                d.text((s(96), s(196)), f"{up} : {out}", font=title,
                        fill=tuple(round(c * fade) for c in INK))
 
-            # Ground and wall.
-            g = _phase(t, 0.15, 0.35)
+            g = _phase(t, at_structure, 0.40)
             if g > 0.01:
-                d.line([(s(180), s(ground_y)), (s(180 + (760 * g)), s(ground_y))],
-                       fill=GROUND, width=7)
-            w = _phase(t, 0.30, 0.35)
+                span = 780 * g
+                d.line([(s(190), s(ground_y)), (s(190 + span), s(ground_y))],
+                       fill=GROUND, width=s(6))
+                _hatch(d, s(198), s(ground_y), s(190 + span), 0,
+                       spacing=s(36), length=s(19), colour=(58, 63, 72))
+            w = _phase(t, at_structure + 0.15, 0.40)
             if w > 0.01:
-                d.line([(s(wall_x), s(ground_y)), (s(wall_x), s(ground_y - 640 * w))],
-                       fill=GROUND, width=7)
+                d.line([(s(wall_x), s(ground_y)), (s(wall_x), s(ground_y - 690 * w))],
+                       fill=GROUND, width=s(6))
+                _hatch(d, s(wall_x + 24), s(ground_y - 690 * w), 0, s(ground_y),
+                       spacing=s(36), length=s(-19), colour=(58, 63, 72), vertical=True)
 
-            # The ladder swings out from flat against the wall to 4:1.
-            swing = _phase(t, 0.55, 0.70)
+            swing = _phase(t, at_ladder, 0.75)
             if swing > 0.01:
                 bx = wall_x - run * swing
+                # Angle arc, so the ratio reads as a geometry not a slogan.
+                if swing > 0.9:
+                    r = 150
+                    d.arc([s(bx - r), s(ground_y - r), s(bx + r), s(ground_y + r)],
+                          start=-angle, end=0, fill=(126, 134, 146), width=s(4))
+                    d.text((s(bx + 46), s(ground_y - 76)), f"{angle:.0f}\u00b0",
+                           font=small, fill=(158, 166, 178))
                 _ladder(d, (s(bx), s(ground_y)), (s(top[0]), s(top[1])),
-                        width=s(78), colour=INK, rail=s(7), rung_gap=s(74))
+                        width=s(86), colour=INK, rail=s(8), rung_gap=s(76))
 
-            # Rise dimension.
-            r = _phase(t, 1.25, 0.40)
+            r = _phase(t, at_rise, 0.45)
             if r > 0.01:
-                _dimension(d, (s(892), s(ground_y)), (s(892), s(top[1])),
-                           progress=r, colour=HI_VIS[:3], tick=s(24))
-                if r > 0.55:
-                    d.text((s(922), s((ground_y + top[1]) / 2 - 52)), str(up),
+                x = 812
+                span = (ground_y - top[1]) * r
+                d.line([(s(x), s(ground_y)), (s(x), s(ground_y - span))],
+                       fill=HI_VIS[:3], width=s(5))
+                d.line([(s(x - 20), s(ground_y)), (s(x + 20), s(ground_y))],
+                       fill=HI_VIS[:3], width=s(5))
+                if r > 0.95:
+                    _arrow(d, (s(x), s(top[1])), (0, -1), size=s(20), colour=HI_VIS[:3])
+                    d.text((s(x + 34), s((ground_y + top[1]) / 2 - 50)), str(up),
                            font=label, fill=HI_VIS[:3])
 
-            # Run dimension.
-            ru = _phase(t, 1.70, 0.40)
+            ru = _phase(t, at_run, 0.45)
             if ru > 0.01:
-                _dimension(d, (s(base_final[0]), s(ground_y + 58)),
-                           (s(wall_x), s(ground_y + 58)),
-                           progress=ru, colour=HI_VIS[:3], tick=s(20))
-                if ru > 0.55:
-                    d.text((s((base_final[0] + wall_x) / 2 - 16), s(ground_y + 82)),
-                           str(out), font=label, fill=HI_VIS[:3])
+                y = ground_y + 62
+                span = run * ru
+                d.line([(s(base_x), s(y)), (s(base_x + span), s(y))],
+                       fill=HI_VIS[:3], width=s(5))
+                d.line([(s(base_x), s(y - 18)), (s(base_x), s(y + 18))],
+                       fill=HI_VIS[:3], width=s(5))
+                if ru > 0.95:
+                    _arrow(d, (s(wall_x), s(y)), (1, 0), size=s(20), colour=HI_VIS[:3])
+                    d.text((s((base_x + wall_x) / 2 - 14), s(y + 26)), str(out),
+                           font=label, fill=HI_VIS[:3])
 
-            # The sentence the diagram is making.
-            cap = _phase(t, 2.20, 0.40)
+            cap = _phase(t, at_run + 0.30, 0.40)
             if cap > 0.01:
-                d.text((s(110), s(378)), f"{up} up, {out} out", font=note,
+                d.text((s(96), s(356)), f"{up} up, {out} out", font=small,
                        fill=tuple(round(DIM[i] + (INK[i] - DIM[i]) * cap) for i in range(3)))
 
             writer.write(canvas.resize((WIDTH, HEIGHT), Image.LANCZOS))
