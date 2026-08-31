@@ -132,7 +132,13 @@ def _dispatch(args: argparse.Namespace) -> int:
         _log(f"words:  {board.word_count}")
         _log(f"pacing: {board.pacing_note()}")
         if board.hook_variants:
-            _log(f"hooks:  {len(board.hook_variants)} variants awaiting selection")
+            _log(f"hooks:  {len(board.hook_variants)} variants")
+
+        manifest = board.render_manifest()
+        if manifest:
+            _log("\nwill render:")
+            for note in manifest:
+                _log(f"  {note}")
         return 0
 
     if args.command == "narrate":
@@ -154,8 +160,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         from . import pipeline
 
         run = _resolve_run(args.run)
-        speech = pipeline.narrate(run, run.storyboard(), log=_log)
-        pipeline.render_overlay(run, speech, force=args.force, log=_log)
+        board = run.storyboard()
+        speech = pipeline.narrate(run, board, log=_log)
+        timings = pipeline.timings_for(run, board, speech, log=_log)
+        pipeline.render_overlay(run, speech, timings, force=args.force, log=_log)
         return 0
 
     if args.command == "broll":
@@ -230,7 +238,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         board = run.storyboard()
         speech = pipeline.narrate(run, board, log=_log)
         timings = pipeline.timings_for(run, board, speech, log=_log)
-        pipeline.render_overlay(run, speech, log=_log)
+        pipeline.render_overlay(run, speech, timings, log=_log)
 
         picks = {
             int(k): [Path(p) for p in (v if isinstance(v, list) else [v])]

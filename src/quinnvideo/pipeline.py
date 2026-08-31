@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from . import captions, compose, ff
-from .align import BeatTiming, align
+from .align import BeatTiming, align, normalise
 from .compose import Composition, Segment
 from .config import VOICE_SPEED, require
 from .heygen import HeyGen, HeyGenError, Speech, download, estimate_cost
@@ -124,17 +124,65 @@ def render_avatar(
 
 
 def render_overlay(
-    run: Run, speech: Speech, *, force: bool = False, log: Log = _noop
+    run: Run,
+    speech: Speech,
+    timings: list[BeatTiming] | None = None,
+    *,
+    force: bool = False,
+    log: Log = _noop,
 ) -> Path:
-    """Draw the caption layer. Free, so it rebuilds whenever anything changes."""
+    """Draw captions and beat overlays. Free, so it rebuilds on any change."""
     if run.has(run.overlay) and not force:
         log("overlay: cached")
         return run.overlay
 
-    log("overlay: drawing captions")
-    captions.render_layer(speech.words, run.overlay, duration=speech.duration)
+    cues: list[captions.OverlayCue] = []
+    emphasis: list[tuple[float, float, set[str]]] = []
+
+    for timing in timings or []:
+        beat = timing.beat
+        # A diagram is footage, not an overlay -- it is already the whole shot.
+        if beat.overlay and beat.overlay.kind in ("stat", "label", "rule"):
+            cues.append(
+                captions.OverlayCue(
+                    start=timing.start + 0.15,
+                    end=timing.end,
+                    text=beat.overlay.text,
+                    kind=beat.overlay.kind,
+                )
+            )
+        if beat.emphasis:
+            emphasis.append(
+                (timing.start, timing.end, {normalise(w) for w in _split(beat.emphasis)})
+            )
+
+    def emphasised(word) -> bool:
+        """Scoped to the beat that authored it, so a common word like "one"
+        is not accented everywhere it happens to occur."""
+        token = normalise(word.word)
+        return any(
+            start <= word.start < end and token in terms for start, end, terms in emphasis
+        )
+
+    log(
+        "overlay: captions"
+        + (f", {len(cues)} beat overlay(s)" if cues else "")
+        + (f", emphasis on {len(emphasis)} beat(s)" if emphasis else "")
+    )
+    captions.render_layer(
+        speech.words,
+        run.overlay,
+        duration=speech.duration,
+        emphasised=emphasised if emphasis else None,
+        cues=cues,
+    )
     log(f"overlay: {run.overlay.stat().st_size / 1e6:.1f} MB")
     return run.overlay
+
+
+def _split(phrases: list[str]) -> list[str]:
+    """Emphasis may be authored as phrases ("ten feet"); accent each word."""
+    return [word for phrase in phrases for word in phrase.split()]
 
 
 # --- stage 4: composition ------------------------------------------------

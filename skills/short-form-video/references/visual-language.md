@@ -45,6 +45,20 @@ The card is a real answer, not a failure. A typographic frame reads as an
 editorial choice; a wrong clip reads as a mistake. Given the choice between an
 honest card and an adjacent stock shot, take the card every time.
 
+## Beat overlays and emphasis
+
+Two authored fields reach the screen beyond the footage itself:
+
+- **`overlay`** with kind `stat` or `label` holds a line in the upper third for
+  the length of the beat, fading in and out. Use it for the one number the beat
+  turns on — `"161 deaths in one year"` — not for restating the narration.
+- **`emphasis`** lists words that keep the accent colour *after* being spoken,
+  instead of reverting to white with the rest of the phrase. Two or three per
+  beat at most; accenting everything accents nothing.
+
+Emphasis matches **spoken** words, so spell numerals the way the voice says
+them. `check` warns about terms it cannot find.
+
 ## Generated diagrams
 
 Some ideas are geometric, and no stock library has footage of them. A rule

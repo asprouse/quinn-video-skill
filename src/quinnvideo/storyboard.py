@@ -82,9 +82,9 @@ class Storyboard(BaseModel):
         description="Competing openings. Graded on text alone, before anything costs money.",
     )
     beats: list[Beat] = Field(..., min_length=2)
-    cta: str = ""
 
-    # Filled in by the pre-render grader once a hook wins.
+    # Which hook_variant was promoted into beat 1. Authoring provenance, not a
+    # render input -- `check` verifies it matches so it cannot drift.
     chosen_hook: int | None = None
 
     @model_validator(mode="after")
@@ -109,6 +109,56 @@ class Storyboard(BaseModel):
     def estimated_seconds(self, wpm: int = TARGET_WPM) -> float:
         return self.word_count / wpm * 60
 
+    def render_manifest(self) -> list[str]:
+        """What of this storyboard will actually reach the screen.
+
+        Exists because schema that promises something the renderer ignores is
+        worse than no schema: it reads as a working feature. Anything authored
+        but unused should show up here as a warning.
+        """
+        notes: list[str] = []
+
+        if self.chosen_hook is not None:
+            if not 0 <= self.chosen_hook < len(self.hook_variants):
+                notes.append(f"! chosen_hook {self.chosen_hook} is out of range")
+            elif self.beats[0].narration.strip() != self.hook_variants[self.chosen_hook].strip():
+                notes.append(
+                    "! chosen_hook does not match beat 1 — promote the winning "
+                    "hook into beat 1's narration"
+                )
+            else:
+                notes.append(f"hook: variant {self.chosen_hook} is in beat 1")
+
+        for beat in self.beats:
+            if beat.overlay:
+                if beat.overlay.kind == "ladder-angle":
+                    notes.append(f"beat {beat.id}: generated diagram replaces its footage")
+                else:
+                    notes.append(
+                        f"beat {beat.id}: {beat.overlay.kind} overlay "
+                        f'"{beat.overlay.text}"'
+                    )
+            if beat.emphasis:
+                spoken = {_norm(w) for w in beat.narration.split()}
+                missing = [
+                    term
+                    for term in beat.emphasis
+                    if not all(_norm(w) in spoken for w in term.split() if _norm(w))
+                ]
+                if missing:
+                    # Almost always a numeral: the script says "161" but the
+                    # narration reads "a hundred and sixty-one", so the term
+                    # never matches a spoken word and the accent never fires.
+                    notes.append(
+                        f"! beat {beat.id}: emphasis {', '.join(missing)} is not in its "
+                        "narration and will not render — spell it as it is spoken"
+                    )
+                kept = [t for t in beat.emphasis if t not in missing]
+                if kept:
+                    notes.append(f"beat {beat.id}: emphasis on {', '.join(kept)}")
+
+        return notes
+
     def pacing_note(self, wpm: int = TARGET_WPM) -> str:
         estimate = self.estimated_seconds(wpm)
         if estimate < MIN_SECONDS:
@@ -131,6 +181,10 @@ class Storyboard(BaseModel):
             json.dumps(self.model_dump(mode="json"), indent=2) + "\n", encoding="utf-8"
         )
         return path
+
+
+def _norm(token: str) -> str:
+    return re.sub(r"[^\w']+", "", token.lower())
 
 
 def slug(topic: str) -> str:

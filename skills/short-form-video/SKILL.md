@@ -43,13 +43,19 @@ Write `storyboard.json` into that directory. Read
 targets there are the difference between a video people watch and one they
 swipe past.
 
-Schema: `topic`, `target_seconds`, `hook_variants` (write 3), `beats[]`, `cta`.
-Each beat needs `narration`, `visual.intent`, `visual.queries`, and optionally
-`emphasis` and `overlay`.
+Schema: `topic`, `target_seconds`, `hook_variants` (write 3), `chosen_hook`,
+`beats[]`. Each beat needs `narration`, `visual.intent`, `visual.queries`, and
+optionally `emphasis` and `overlay`.
 
 ```bash
-uv run quinn-video check     # validates and reports pacing
+uv run quinn-video check     # validates, reports pacing, and lists what will render
 ```
+
+`check` prints a **render manifest** — every authored overlay and emphasis term,
+and a `!` warning for anything that will be silently ignored. Read it. The
+common failure is emphasising a numeral: write `"sixty-one"`, not `"161"`,
+because the narration says "a hundred and sixty-one" and the accent matches
+spoken words.
 
 `check` tells you if the script is too long or short. Fix it now — the word
 count is what sets the runtime, and you cannot trim it after paying for audio.

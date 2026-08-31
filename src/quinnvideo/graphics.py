@@ -84,6 +84,10 @@ class Token:
     start: float
     end: float
     width: float = 0.0
+    # Authored in the storyboard. An emphasised word keeps the accent colour
+    # after it has been spoken, instead of reverting to white with the rest
+    # of the phrase.
+    emphasised: bool = False
 
 
 @dataclass
@@ -196,7 +200,7 @@ class Renderer:
 
         for i, token in enumerate(group.tokens[:visible]):
             is_active = i == active
-            colour = style.active if is_active else style.spoken
+            colour = style.active if (is_active or token.emphasised) else style.spoken
 
             font = self.font
             x, y = positions[i]
@@ -256,6 +260,39 @@ def _ease_out(t: float) -> float:
 
 def blank() -> Image.Image:
     return Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+
+
+# --- beat overlays -------------------------------------------------------
+
+
+def draw_overlay(canvas, text: str, progress: float, *, kind: str = "stat") -> None:
+    """Draw a beat's stat or label into the overlay layer.
+
+    Sits in the upper third, well clear of the caption line and the cornered
+    presenter, and uses the same stroke-and-shadow treatment as the captions
+    so the two read as one system rather than two.
+    """
+    from PIL import ImageDraw
+
+    if progress <= 0.01:
+        return
+
+    draw = ImageDraw.Draw(canvas)
+    face = fonts.load(fonts.DISPLAY, 78 if kind == "stat" else 60)
+    alpha = round(255 * min(1.0, progress))
+    # Slides up as it fades in; a graphic that simply appears reads as a bug.
+    lift = round(26 * (1.0 - _ease_out(min(1.0, progress))))
+
+    x, y = 96, 300 + lift
+    draw.rectangle([x, y - 34, x + 132, y - 22], fill=(*HI_VIS[:3], alpha))
+
+    for line in _wrap(face, text.upper(), WIDTH - 320):
+        draw.text((x + 4, y + 6), line, font=face,
+                  fill=(0, 0, 0, round(alpha * 0.55)), stroke_width=8,
+                  stroke_fill=(0, 0, 0, round(alpha * 0.55)))
+        draw.text((x, y), line, font=face, fill=(255, 255, 255, alpha),
+                  stroke_width=8, stroke_fill=(*INK[:3], alpha))
+        y += 92
 
 
 # --- fallback graphics ---------------------------------------------------

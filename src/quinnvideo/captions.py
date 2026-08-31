@@ -10,11 +10,13 @@ of a beat while still tracking the voice exactly.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 from .config import FPS
 from .ff import AlphaWriter
-from .graphics import Group, Renderer, Token, blank
+from .graphics import Group, Renderer, Token, blank, draw_overlay
 from .heygen import Word
 
 # A pause longer than this reads as a phrase boundary in speech, so it should
@@ -28,7 +30,30 @@ SENTENCE_END = ".!?"
 CLAUSE_END = ",;:"
 
 
-def group_words(words: list[Word]) -> list[Group]:
+@dataclass
+class OverlayCue:
+    """A beat's stat or label, and the window it is on screen for."""
+
+    start: float
+    end: float
+    text: str
+    kind: str = "stat"
+
+    def progress(self, t: float) -> float:
+        """0 before it appears, ramps to 1, drops away before the beat ends."""
+        if not (self.start <= t <= self.end):
+            return 0.0
+        fade_in, fade_out = 0.35, 0.3
+        if t < self.start + fade_in:
+            return (t - self.start) / fade_in
+        if t > self.end - fade_out:
+            return max(0.0, (self.end - t) / fade_out)
+        return 1.0
+
+
+def group_words(
+    words: list[Word], emphasised: Callable[[Word], bool] | None = None
+) -> list[Group]:
     """Chunk a word stream into phrases that appear as a unit.
 
     Breaks follow the speech, not a fixed word count: a pause, a sentence
@@ -39,7 +64,14 @@ def group_words(words: list[Word]) -> list[Group]:
     chars = 0
 
     for i, word in enumerate(words):
-        current.append(Token(text=word.word, start=word.start, end=word.end))
+        current.append(
+            Token(
+                text=word.word,
+                start=word.start,
+                end=word.end,
+                emphasised=bool(emphasised and emphasised(word)),
+            )
+        )
         chars += len(word.word) + 1
 
         stripped = word.word.rstrip()
@@ -68,16 +100,17 @@ def render_layer(
     *,
     duration: float | None = None,
     renderer: Renderer | None = None,
-    extra_draw: object = None,
+    emphasised: Callable[[Word], bool] | None = None,
+    cues: list[OverlayCue] | None = None,
 ) -> Path:
-    """Render the full caption layer to a lossless alpha video.
+    """Render captions and beat overlays into one alpha layer.
 
-    ``extra_draw``, if given, is called as ``fn(canvas, t)`` for every frame
-    after the captions are drawn -- that is the hook the stat cards and
-    fallback graphics hang off, so everything shares one overlay pass.
+    Both are drawn in the same pass because they share a frame budget and a
+    visual language; splitting them would mean compositing twice for nothing.
     """
     renderer = renderer or Renderer()
-    groups = group_words(words)
+    cues = cues or []
+    groups = group_words(words, emphasised)
     for group in groups:
         renderer.layout(group)
 
@@ -97,16 +130,18 @@ def render_layer(
 
             group = groups[cursor] if cursor < len(groups) else None
             visible = group is not None and t >= group.start
+            active_cues = [(c, c.progress(t)) for c in cues]
+            active_cues = [(c, p) for c, p in active_cues if p > 0.01]
 
-            if not visible and extra_draw is None:
+            if not visible and not active_cues:
                 writer.write(empty)
                 continue
 
             canvas = blank()
             if visible:
                 renderer.draw_group(canvas, group, t)
-            if extra_draw is not None:
-                extra_draw(canvas, t)
+            for cue, progress in active_cues:
+                draw_overlay(canvas, cue.text, progress, kind=cue.kind)
             writer.write(canvas)
 
     return dest
