@@ -72,6 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     build = with_run(sub.add_parser("build", help="composite the finished video"))
     build.add_argument("--music", help="optional music bed")
 
+    probe = sub.add_parser(
+        "probe", help="test whether an avatar supports transparent output (~$0.22)"
+    )
+    probe.add_argument("--avatar", help="avatar id (default: QUINN_AVATAR_ID)")
+    probe.add_argument("--voice", help="voice id (default: QUINN_VOICE_ID)")
+    probe.add_argument("--engine", default="avatar_iii", help="cheapest engine by default")
+    probe.add_argument("--keep", help="where to save the probe render")
+
     with_run(sub.add_parser("grade", help="score the finished video and write a scorecard"))
     with_run(sub.add_parser("status", help="show what a run has produced so far"))
 
@@ -216,6 +224,27 @@ def _dispatch(args: argparse.Namespace) -> int:
             log=_log,
         )
         return 0
+
+    if args.command == "probe":
+        from pathlib import Path as _Path
+
+        from .config import require
+        from .probe import probe_transparency
+
+        result = probe_transparency(
+            args.avatar or require("QUINN_AVATAR_ID", "the probe"),
+            args.voice or require("QUINN_VOICE_ID", "the probe"),
+            engine=args.engine,
+            keep=_Path(args.keep) if args.keep else None,
+            log=_log,
+        )
+        mark = "\033[32m✓\033[0m" if result.transparent else "\033[31m✗\033[0m"
+        _log(f"\n{mark} transparent output: {result.detail}")
+        _log(f"  {result.width}x{result.height}, {result.engine}, ~${result.cost:.2f} spent")
+        if not result.transparent:
+            _log("\n  Pick a different avatar, or render opaque and stage it as a")
+            _log("  lower-third panel instead of a cutout.")
+        return 0 if result.transparent else 1
 
     if args.command == "grade":
         from . import grade as grader

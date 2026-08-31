@@ -18,39 +18,9 @@ FONTS = ASSETS / "fonts"
 RUNS = REPO_ROOT / "runs"
 
 
-# --- Canvas --------------------------------------------------------------
-# Vertical 9:16, the only shape that matters for TikTok/Reels/Shorts.
-
-WIDTH = 1080
-HEIGHT = 1920
-FPS = 30
-
-# Platform chrome eats the edges of the frame. Nothing readable goes here.
-# Measured against TikTok, which is the most aggressive of the three.
-SAFE_BOTTOM = 340  # caption bar, username, description
-SAFE_TOP = 120  # "Following / For You" tabs
-SAFE_RIGHT = 200  # like/comment/share rail
-
-
-# --- Pacing --------------------------------------------------------------
-# The brief asks for 30-60s. We aim mid-range: long enough to teach one idea,
-# short enough that nobody swipes.
-
-TARGET_SECONDS = 45
-MIN_SECONDS = 30
-MAX_SECONDS = 60
-
-# Short-form narration runs fast. Below ~140 wpm it feels like a lecture.
-TARGET_WPM = 165
-WORDS_FOR_TARGET = int(TARGET_SECONDS * TARGET_WPM / 60)
-
-
 # --- Environment ---------------------------------------------------------
-
-
-class ConfigError(RuntimeError):
-    """A required key or setting is missing."""
-
+# Loaded before anything below reads os.environ, so .env can override the
+# render defaults and not just the credentials.
 
 def _load_dotenv() -> None:
     """Read .env into os.environ without clobbering real environment vars.
@@ -72,6 +42,49 @@ def _load_dotenv() -> None:
 
 
 _load_dotenv()
+
+
+# --- Canvas --------------------------------------------------------------
+# Vertical 9:16, the only shape that matters for TikTok/Reels/Shorts.
+
+WIDTH = 1080
+HEIGHT = 1920
+FPS = 30
+
+# Platform chrome eats the edges of the frame. Nothing readable goes here.
+# Measured against TikTok, which is the most aggressive of the three.
+SAFE_BOTTOM = 340  # caption bar, username, description
+SAFE_TOP = 120  # "Following / For You" tabs
+SAFE_RIGHT = 200  # like/comment/share rail
+
+
+# --- Pacing --------------------------------------------------------------
+# The brief asks for 30-60s. We aim mid-range: long enough to teach one idea,
+# short enough that nobody swipes.
+
+MIN_SECONDS = 30
+MAX_SECONDS = 60
+
+# The brief allows 30-60s. Avatar rendering is billed per second, so while
+# iterating it is worth working at the short end and only stretching out once
+# the script and the footage are settled.
+TARGET_SECONDS = max(
+    MIN_SECONDS, min(MAX_SECONDS, int(os.environ.get("QUINN_TARGET_SECONDS") or 45))
+)
+
+# Short-form narration runs fast. Below ~140 wpm it feels like a lecture.
+TARGET_WPM = 165
+
+
+def words_for(seconds: float = TARGET_SECONDS) -> int:
+    return int(seconds * TARGET_WPM / 60)
+
+
+# --- Environment ---------------------------------------------------------
+
+
+class ConfigError(RuntimeError):
+    """A required key or setting is missing."""
 
 
 def env(name: str, default: str | None = None) -> str | None:

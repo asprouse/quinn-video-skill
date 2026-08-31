@@ -279,6 +279,7 @@ class HeyGen:
         aspect_ratio: str = "9:16",
         resolution: Literal["720p", "1080p", "4k"] = "1080p",
         motion_prompt: str | None = None,
+        engine: str | None = None,
         idempotency_key: str | None = None,
     ) -> str:
         """Queue an avatar render lip-synced to our own audio.
@@ -297,6 +298,10 @@ class HeyGen:
         }
         if motion_prompt:
             body["motion_prompt"] = motion_prompt
+        if engine:
+            # A discriminated union, not a bare string -- passing "avatar_iii"
+            # here returns a 400 that names no field.
+            body["engine"] = {"type": engine}
 
         # A `background` key is rejected outright alongside webm, so we never
         # set one -- we composite the avatar over our own b-roll instead.
