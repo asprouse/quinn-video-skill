@@ -105,3 +105,27 @@ def test_sentinel_tokens_never_reach_the_captions():
     assert _is_sentinel("  <end> ")
     assert not _is_sentinel("ladder")
     assert not _is_sentinel("4<5")
+
+
+def test_word_spacing_accounts_for_the_stroke():
+    """The stroke grows each word outward, so the advance must exceed it.
+
+    Regression: word_gap was used as the raw advance, leaving 2px of visible
+    space between two 9px-stroked words. The line read as a single blob.
+    """
+    style = CaptionStyle()
+
+    assert style.advance == style.word_gap + 2 * style.stroke
+    assert style.line_height == style.size + style.line_gap + 2 * style.stroke
+
+    renderer = Renderer(style)
+    words = _words([("at", 0.0, 0.2), ("the", 0.2, 0.4)])
+    group = group_words(words)[0]
+    renderer.layout(group)
+
+    (x0, _), (x1, _) = group.layouts[2]
+    visible_gap = (x1 - style.stroke) - (x0 + group.tokens[0].width + style.stroke)
+    # Comfortably clear of the 2px the un-corrected advance produced, and
+    # wide enough that the active word's scale pop cannot merge with its
+    # neighbour.
+    assert visible_gap >= 12, f"only {visible_gap}px of visible space between words"

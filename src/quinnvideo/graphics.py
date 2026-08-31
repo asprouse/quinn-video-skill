@@ -30,8 +30,18 @@ INK = (10, 10, 12, 255)
 @dataclass
 class CaptionStyle:
     size: int = 78
+
+    # These are *optical* gaps: the space you actually see between one
+    # stroked word and the next. The stroke grows each word outward on every
+    # side, so the advance the layout needs is this plus twice the stroke.
+    # Treating them as raw advances is how the first version ended up with
+    # 20px of nominal spacing and 2px of visible gap, which read as one word.
+    # 16 reads as a natural word space for a face this heavy. Tighter starts
+    # to merge once the active word takes its scale pop; looser reads as airy
+    # and slows the phrase down.
+    word_gap: int = 16
     line_gap: int = 22
-    word_gap: int = 20
+
     stroke: int = 9
     shadow_offset: tuple[int, int] = (0, 6)
     shadow_alpha: int = 150
@@ -46,6 +56,16 @@ class CaptionStyle:
 
     pop_scale: float = 1.14
     pop_duration: float = 0.13
+
+    @property
+    def advance(self) -> int:
+        """Horizontal distance between word origins."""
+        return self.word_gap + 2 * self.stroke
+
+    @property
+    def line_height(self) -> int:
+        """Vertical distance between line baselines."""
+        return self.size + self.line_gap + 2 * self.stroke
 
     # How a phrase builds. "in-place" lays the whole phrase out once and
     # reveals words at their final positions, so the line grows left to
@@ -139,7 +159,7 @@ class Renderer:
         widths: list[float] = [0.0]
 
         for token in tokens:
-            addition = token.width + (style.word_gap if lines[-1] else 0)
+            addition = token.width + (style.advance if lines[-1] else 0)
             if lines[-1] and widths[-1] + addition > style.max_width:
                 lines.append([token])
                 widths.append(token.width)
@@ -147,18 +167,17 @@ class Renderer:
                 lines[-1].append(token)
                 widths[-1] += addition
 
-        line_height = style.size + style.line_gap
         # Grow upward from the baseline so a second line never pushes the
         # phrase down into the platform UI.
-        top = style.baseline_y - (len(lines) - 1) * line_height
+        top = style.baseline_y - (len(lines) - 1) * style.line_height
 
         positions: list[tuple[float, float]] = []
         for row, (line, width) in enumerate(zip(lines, widths, strict=True)):
             x = (WIDTH - width) / 2
-            y = top + row * line_height
+            y = top + row * style.line_height
             for token in line:
                 positions.append((x, y))
-                x += token.width + style.word_gap
+                x += token.width + style.advance
         return positions
 
     # --- drawing ---------------------------------------------------------
