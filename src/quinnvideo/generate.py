@@ -26,15 +26,23 @@ from .config import require
 
 BASE = "https://fal.run"
 
-# Cheap, fast and strong on ordinary photographic scenes.
-DEFAULT_MODEL = "fal-ai/flux-pro/v1.1"
+# Ultra renders around 1536x2752 and is downsampled into the 1080x1920 canvas,
+# which is why it holds detail the others lose. Plain flux-pro/v1.1 is
+# deliberately absent: it ignores the requested size and returns 1056x1440,
+# so every frame arrived as a heavy crop upscaled by a third.
+DEFAULT_MODEL = "fal-ai/flux-pro/v1.1-ultra"
+ALT_MODEL = "fal-ai/bytedance/seedream/v4/text-to-image"
 FAST_MODEL = "fal-ai/flux/schnell"
 
 COST = {
     "fal-ai/flux/schnell": 0.025,
-    "fal-ai/flux-pro/v1.1": 0.05,
+    "fal-ai/flux/dev": 0.025,
+    "fal-ai/flux-pro/v1.1-ultra": 0.06,
     "fal-ai/bytedance/seedream/v4/text-to-image": 0.03,
 }
+
+# Models that take an aspect ratio string rather than explicit pixel dimensions.
+ASPECT_MODELS = {"fal-ai/flux-pro/v1.1-ultra"}
 
 # Appended to every prompt so a run's shots read as one shoot rather than a
 # collection of stock. Without it the lighting and grade wander between beats.
@@ -46,6 +54,15 @@ HOUSE_STYLE = (
 
 class GenerationError(RuntimeError):
     pass
+
+
+def _dimensions(data: bytes) -> tuple[int, int]:
+    import io
+
+    from PIL import Image
+
+    with Image.open(io.BytesIO(data)) as image:
+        return image.size
 
 
 @dataclass
@@ -81,15 +98,15 @@ def generate_still(
     key = require("FAL_KEY", "generated b-roll")
     started = time.monotonic()
 
+    size: dict = (
+        {"aspect_ratio": "9:16"}
+        if model in ASPECT_MODELS
+        else {"image_size": {"width": width, "height": height}}
+    )
     response = httpx.post(
         f"{BASE}/{model}",
         headers={"Authorization": f"Key {key}", "Content-Type": "application/json"},
-        json={
-            "prompt": prompt,
-            "image_size": {"width": width, "height": height},
-            "num_images": 1,
-            "enable_safety_checker": True,
-        },
+        json={"prompt": prompt, "num_images": 1, "enable_safety_checker": True, **size},
         timeout=timeout,
     )
     if response.status_code != 200:
@@ -101,7 +118,18 @@ def generate_still(
         raise GenerationError(f"fal {model} returned no image: {str(payload)[:300]}")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(httpx.get(images[0]["url"], timeout=timeout).content)
+    data = httpx.get(images[0]["url"], timeout=timeout).content
+    dest.write_bytes(data)
+
+    # Anything smaller than the canvas gets upscaled by the compositor, which
+    # is exactly the softness this module exists to avoid. Say so rather than
+    # letting it pass silently.
+    got_w, got_h = _dimensions(data)
+    if got_w < width or got_h < height:
+        raise GenerationError(
+            f"{model} returned {got_w}x{got_h}, smaller than the {width}x{height} canvas. "
+            "It would be upscaled. Use a model that honours the requested size."
+        )
 
     return Generated(
         path=dest,
