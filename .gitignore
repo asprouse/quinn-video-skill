@@ -1,0 +1,32 @@
+# Secrets — never commit
+.env
+.env.local
+*.key
+
+# Run artifacts (large binaries, API-cached media)
+runs/
+cache/
+*.mp4
+*.webm
+*.mp3
+*.wav
+*.ass
+
+# Allow curated example output
+!examples/**/*.mp4
+!examples/**/*.mp3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# OS
+.DS_Store
+
+# Downloaded typefaces (fetched by `quinn-video fonts`, OFL-licensed upstream)
+assets/fonts/*.ttf
+assets/fonts/*.otf
+
+# Client brief — not ours to redistribute
+quinn_video_brief_v2.pdf

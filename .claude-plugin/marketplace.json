@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "quinn-video-skill",
+  "description": "Short-form educational video generation for Claude Code",
+  "owner": {
+    "name": "Andrew Sprouse",
+    "email": "andrew@takeshape.io"
+  },
+  "plugins": [
+    {
+      "name": "quinn-video",
+      "source": "./",
+      "description": "Turns a topic into a finished 30-60s vertical educational video: HeyGen avatar, synced voiceover, word-by-word captions, and on-topic b-roll, with an automated engagement grading loop.",
+      "author": { "name": "Andrew Sprouse" },
+      "license": "MIT",
+      "keywords": ["video", "heygen", "short-form", "captions", "training"]
+    }
+  ]
+}
