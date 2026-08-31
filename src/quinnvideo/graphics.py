@@ -225,3 +225,58 @@ def _ease_out(t: float) -> float:
 
 def blank() -> Image.Image:
     return Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+
+
+# --- fallback graphics ---------------------------------------------------
+
+
+def render_card(text: str, dest, *, kicker: str = "", accent=HI_VIS):
+    """A designed full-frame card, used when no honest footage exists.
+
+    This is the last rung of the b-roll fallback ladder. The brief forbids
+    anything off-topic, so when stock libraries have nothing that genuinely
+    shows the thing being described, the right answer is a deliberate
+    typographic frame -- not a loosely related shot of somebody in a hard hat.
+    A card reads as an editorial choice; a wrong clip reads as a mistake.
+    """
+    from PIL import Image, ImageDraw
+
+    canvas = Image.new("RGB", (WIDTH, HEIGHT), (18, 20, 24))
+    draw = ImageDraw.Draw(canvas)
+
+    # Vertical wash so the frame is not a flat rectangle behind the captions.
+    for y in range(HEIGHT):
+        shade = 18 + int(26 * (y / HEIGHT))
+        draw.line([(0, y), (WIDTH, y)], fill=(shade, shade + 2, shade + 6))
+
+    display = fonts.load(fonts.DISPLAY, 132)
+    label = fonts.load(fonts.CAPTION, 40)
+
+    # Text sits in the upper half; captions own the lower third.
+    y = 470
+    if kicker:
+        draw.text((110, y - 90), kicker.upper(), font=label, fill=accent[:3])
+
+    for line in _wrap(display, text.upper(), WIDTH - 220):
+        draw.text((110, y), line, font=display, fill=(245, 245, 248))
+        y += 150
+
+    draw.rectangle([110, y + 30, 110 + 180, y + 44], fill=accent[:3])
+
+    canvas.save(dest, quality=95)
+    return dest
+
+
+def _wrap(font, text: str, limit: int) -> list[str]:
+    lines: list[str] = []
+    line = ""
+    for word in text.split():
+        trial = f"{line} {word}".strip()
+        if font.getlength(trial) > limit and line:
+            lines.append(line)
+            line = word
+        else:
+            line = trial
+    if line:
+        lines.append(line)
+    return lines
