@@ -106,6 +106,52 @@ def alpha_bbox(video: Path, samples: int = 5) -> tuple[int, int, int, int]:
     return left, top, max(2, width), max(2, height)
 
 
+class VideoWriter:
+    """Stream opaque RGB frames from Pillow into an h264 clip.
+
+    Used for generated motion graphics, which sit in the b-roll track as
+    ordinary shots rather than as an overlay -- so they behave like any other
+    clip the cut list can schedule.
+    """
+
+    def __init__(self, dest: Path, fps: int = FPS) -> None:
+        self.dest = dest
+        self.fps = fps
+        self._process: subprocess.Popen[bytes] | None = None
+        self.frames = 0
+
+    def __enter__(self) -> VideoWriter:
+        self.dest.parent.mkdir(parents=True, exist_ok=True)
+        self._process = subprocess.Popen(
+            [
+                binary(), "-hide_banner", "-loglevel", "error", "-y",
+                "-f", "rawvideo", "-pix_fmt", "rgb24",
+                "-s", f"{WIDTH}x{HEIGHT}", "-r", str(self.fps), "-i", "-",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                "-pix_fmt", "yuv420p", str(self.dest),
+            ],
+            stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return self
+
+    def write(self, image: Any) -> None:
+        assert self._process and self._process.stdin
+        self._process.stdin.write(image.tobytes())
+        self.frames += 1
+
+    def __exit__(self, *exc: object) -> None:
+        assert self._process
+        if self._process.stdin:
+            self._process.stdin.close()
+        stderr = self._process.stderr.read() if self._process.stderr else b""
+        if self._process.wait() != 0:
+            raise FFmpegError(
+                f"graphic encode failed ({self._process.returncode}): "
+                f"{stderr.decode(errors='replace').strip()[-1500:]}"
+            )
+
+
 class AlphaWriter:
     """Stream RGBA frames from Pillow into a lossless alpha-preserving file.
 

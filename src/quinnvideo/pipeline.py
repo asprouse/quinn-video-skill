@@ -145,6 +145,7 @@ def plan_segments(
     picks: dict[int, list[Path]],
     *,
     max_shot: float = 4.0,
+    atomic: set[int] | None = None,
     log: Log = _noop,
 ) -> list[Segment]:
     """Turn beat timings plus chosen footage into a cut list.
@@ -167,9 +168,14 @@ def plan_segments(
             continue
 
         span = max(0.4, timing.duration)
-        # Never fewer shots than we have clips for this beat -- a second clip
-        # the reviewer chose should always make it on screen.
-        shots = max(len(sources), 1, round(span / max_shot + 0.35))
+        if atomic and timing.beat.id in atomic:
+            # A generated animation plays once, start to finish. Splitting it
+            # into equal shots would restart it partway through.
+            shots = 1
+        else:
+            # Never fewer shots than we have clips for this beat -- a second
+            # clip the reviewer chose should always make it on screen.
+            shots = max(len(sources), 1, round(span / max_shot + 0.35))
         each = span / shots
 
         for n in range(shots):

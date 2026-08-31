@@ -45,6 +45,28 @@ The card is a real answer, not a failure. A typographic frame reads as an
 editorial choice; a wrong clip reads as a mistake. Given the choice between an
 honest card and an adjacent stock shot, take the card every time.
 
+## Generated diagrams
+
+Some ideas are geometric, and no stock library has footage of them. A rule
+about an angle, a ratio, or a distance is better *drawn* than illustrated with
+a photograph of something nearby.
+
+Set the beat's overlay kind to `ladder-angle` and it generates an animated
+diagram instead of sourcing footage: ground and wall draw in, the ladder swings
+out to the correct angle, then the rise and run dimensions annotate themselves.
+
+```json
+"overlay": { "kind": "ladder-angle", "text": "4 : 1", "ratio": [4, 1] }
+```
+
+Time it against the narration. The build treats a generated clip as **one
+shot** rather than cutting it into fragments, so the animation plays once,
+start to finish, across the whole beat — give it a beat of 4-6s and write the
+narration so the rule is spoken while the diagram draws it.
+
+Everything in the diagram stays above y=1000, clear of the caption line and the
+cornered presenter. When adding new diagrams, keep to that band.
+
 ## Captions
 
 Handled automatically from the word timestamps — you do not author these. What

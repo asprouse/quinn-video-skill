@@ -44,10 +44,16 @@ class Visual(BaseModel):
 
 
 class Overlay(BaseModel):
-    """An optional graphic burned over the b-roll for this beat."""
+    """A graphic for this beat.
 
-    kind: Literal["stat", "label", "rule"]
+    ``ladder-angle`` generates an animated diagram instead of sourcing stock
+    footage: the 4-to-1 rule is a statement about an angle, and no stock
+    library has a clip of an angle. The others are typographic cards.
+    """
+
+    kind: Literal["stat", "label", "rule", "ladder-angle"]
     text: str = Field(..., max_length=48)
+    ratio: tuple[int, int] = (4, 1)
 
 
 class Beat(BaseModel):

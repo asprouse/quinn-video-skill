@@ -179,7 +179,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         return 0
 
     if args.command == "fetch":
-        from . import broll
+        from . import broll, pipeline
 
         run = _resolve_run(args.run)
         path = Path(args.picks) if args.picks else run.directory / "picks.json"
@@ -187,6 +187,14 @@ def _dispatch(args: argparse.Namespace) -> int:
 
         board = run.storyboard()
         by_id = {b.id: b for b in board.beats}
+
+        # Generated graphics are cut to the length of their beat, so they need
+        # the timeline. Narration is already paid for and cached.
+        speech = pipeline.narrate(run, board, log=_log)
+        spans = {
+            t.beat.id: t.duration
+            for t in pipeline.timings_for(run, board, speech, log=_log)
+        }
 
         # A beat may carry one pick or several; normalise to a list either way.
         wanted: dict[int, list[dict]] = {}
@@ -202,11 +210,14 @@ def _dispatch(args: argparse.Namespace) -> int:
         resolved = broll.fetch_picks(run, wanted, log=_log) if wanted else {}
         for beat_id in cards:
             resolved.setdefault(beat_id, []).append(
-                broll.fallback_card(run, by_id[beat_id], log=_log)
+                broll.fallback_card(
+                    run, by_id[beat_id], duration=spans.get(beat_id, 4.0), log=_log
+                )
             )
 
         run.update_state(
-            picks={str(k): [str(p) for p in v] for k, v in sorted(resolved.items())}
+            picks={str(k): [str(p) for p in v] for k, v in sorted(resolved.items())},
+            generated=sorted(cards),
         )
         shots = sum(len(v) for v in resolved.values())
         _log(f"\n{len(resolved)} of {len(board.beats)} beats have footage ({shots} clips).")
@@ -230,7 +241,9 @@ def _dispatch(args: argparse.Namespace) -> int:
                 "no footage selected for this run — run `quinn-video broll` then `fetch`"
             )
 
-        segments = pipeline.plan_segments(timings, picks, log=_log)
+        segments = pipeline.plan_segments(
+            timings, picks, atomic=set(run.state().get("generated") or []), log=_log
+        )
         pipeline.build(
             run,
             speech,

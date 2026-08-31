@@ -161,8 +161,20 @@ def fetch_picks(
     return resolved
 
 
-def fallback_card(run: Run, beat: Beat, *, log: Log = _noop) -> Path:
-    """Draw a designed card for a beat with no acceptable footage."""
+def fallback_card(
+    run: Run, beat: Beat, *, duration: float = 4.0, log: Log = _noop
+) -> Path:
+    """Generate this beat's graphic: an animated diagram, or a designed card."""
+    if beat.overlay and beat.overlay.kind == "ladder-angle":
+        from .diagrams import render_ladder_angle
+
+        dest = run.broll_dir / f"diagram-beat-{beat.id}.mp4"
+        if not (dest.exists() and dest.stat().st_size > 0):
+            log(f"beat {beat.id}: drawing the {beat.overlay.ratio[0]}:"
+                f"{beat.overlay.ratio[1]} diagram ({duration:.1f}s)")
+            render_ladder_angle(dest, duration, ratio=beat.overlay.ratio)
+        return dest
+
     dest = run.broll_dir / f"card-beat-{beat.id}.jpg"
     # The overlay text is authored for the screen; the headline falls back to
     # the narration. visual.intent is a search instruction and must never
