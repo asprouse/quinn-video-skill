@@ -28,6 +28,34 @@ BASE_URL = "https://api.heygen.com"
 POLL_INTERVAL = 8.0
 POLL_TIMEOUT = 900.0
 
+# Pay-as-you-go rates in USD per second of rendered video, from HeyGen's
+# published pricing. Avatar rendering is by far the most expensive thing this
+# pipeline does -- narration is roughly two orders of magnitude cheaper -- so
+# the numbers exist to warn before spending, not to bill anyone.
+AVATAR_RATES: dict[tuple[str, str], float] = {
+    ("avatar_iii", "photo_avatar"): 0.0433,
+    ("avatar_iii", "digital_twin"): 0.0167,
+    ("avatar_iii", "studio_avatar"): 0.0167,
+    ("avatar_iv", "photo_avatar"): 0.05,
+    ("avatar_iv", "digital_twin"): 0.0667,
+    ("avatar_iv", "studio_avatar"): 0.0667,
+    ("avatar_v", "digital_twin"): 0.0667,
+    ("avatar_v", "studio_avatar"): 0.0667,
+}
+TTS_RATE = 0.000667
+
+
+def estimate_cost(
+    seconds: float, engine: str = "avatar_iv", avatar_type: str = "photo_avatar"
+) -> float:
+    """What one avatar render of this length will cost, in USD."""
+    rate = AVATAR_RATES.get((engine, avatar_type), 0.05)
+    return round(seconds * rate, 2)
+
+
+def estimate_tts_cost(seconds: float) -> float:
+    return round(seconds * TTS_RATE, 4)
+
 
 class HeyGenError(RuntimeError):
     """A HeyGen request failed in a way we cannot recover from."""
@@ -139,28 +167,65 @@ class HeyGen:
 
     # --- discovery -------------------------------------------------------
 
-    def _paginate(self, path: str, params: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    def _paginate(
+        self, path: str, params: dict[str, Any], *, max_items: int | None = None
+    ) -> Iterator[dict[str, Any]]:
+        """Walk a cursor-paginated listing.
+
+        ``max_items`` is not optional in spirit: HeyGen's public avatar library
+        runs to five figures, and walking all of it takes minutes. Anything
+        that just needs to know whether avatars exist should ask for a page,
+        not the catalogue.
+        """
         params = {**params, "limit": params.get("limit", 50)}
+        seen = 0
         while True:
             payload = self._request("GET", path, params=params)
-            yield from payload.get("data") or []
-            if not payload.get("has_more") or not payload.get("next_token"):
+            for item in payload.get("data") or []:
+                yield item
+                seen += 1
+                if max_items is not None and seen >= max_items:
+                    return
+            token = payload.get("next_token")
+            if not payload.get("has_more") or not token or token == params.get("token"):
                 return
-            params["token"] = payload["next_token"]
+            params["token"] = token
 
-    def avatars(self, ownership: str | None = None) -> list[dict[str, Any]]:
+    def avatars(
+        self,
+        ownership: str | None = None,
+        *,
+        max_items: int | None = None,
+    ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {}
         if ownership:
             params["ownership"] = ownership
-        return list(self._paginate("/v3/avatars/looks", params))
+        return list(self._paginate("/v3/avatars/looks", params, max_items=max_items))
 
-    def voices(self, engine: str = "starfish", **filters: Any) -> list[dict[str, Any]]:
+    def avatar(self, avatar_id: str) -> dict[str, Any] | None:
+        """Look up one avatar by id, without walking the catalogue."""
+        try:
+            return self._request("GET", f"/v3/avatars/looks/{avatar_id}").get("data")
+        except HeyGenError:
+            return None
+
+    def voices(
+        self, engine: str = "starfish", *, max_items: int | None = None, **filters: Any
+    ) -> list[dict[str, Any]]:
         """List voices. Defaults to the starfish engine, the only one the
         speech endpoint (and therefore word timestamps) accepts."""
-        return list(self._paginate("/v3/voices", {"engine": engine, **filters}))
+        return list(
+            self._paginate("/v3/voices", {"engine": engine, **filters}, max_items=max_items)
+        )
 
     def account(self) -> dict[str, Any]:
-        return self._request("GET", "/v2/user/remaining_quota").get("data", {})
+        """Wallet balance and identity. (/v2/user/remaining_quota is deprecated.)"""
+        return self._request("GET", "/v3/users/me").get("data", {})
+
+    def balance(self) -> float | None:
+        wallet = (self.account().get("wallet") or {})
+        value = wallet.get("remaining_balance")
+        return float(value) if value is not None else None
 
     # --- 1. narration ----------------------------------------------------
 

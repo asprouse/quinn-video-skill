@@ -122,7 +122,12 @@ def check_keys(keys: Keys) -> Iterable[Check]:
 
 
 def check_heygen_live(keys: Keys) -> Iterable[Check]:
-    """Confirm the key actually works, and that usable avatars/voices exist."""
+    """Confirm the key works and that the configured avatar and voice exist.
+
+    Deliberately does not enumerate the catalogue. HeyGen's public library runs
+    to roughly ten thousand avatars and two thousand voices, and walking it
+    turned this preflight into a two-minute wait.
+    """
     if not keys.heygen:
         return
 
@@ -130,24 +135,61 @@ def check_heygen_live(keys: Keys) -> Iterable[Check]:
 
     try:
         with HeyGen(keys.heygen) as client:
-            avatars = client.avatars()
-            ready = [a for a in avatars if a.get("status") in (None, "completed")]
-            yield Check(
-                "heygen avatars",
-                bool(ready),
-                f"{len(ready)} usable of {len(avatars)}"
-                if ready
-                else "none usable — create an avatar in the HeyGen dashboard",
-            )
+            # One page is enough to prove the key authenticates.
+            page = client.avatars(max_items=1)
+            yield Check("heygen api", bool(page), "authenticated" if page else "no avatars visible")
 
-            voices = client.voices(engine="starfish")
-            yield Check(
-                "heygen voices",
-                bool(voices),
-                f"{len(voices)} starfish voices (word timestamps supported)"
-                if voices
-                else "no starfish voices — word-level captions impossible",
-            )
+            # Avatar rendering is the only expensive step, and running out of
+            # balance mid-pipeline wastes the narration already paid for.
+            from .heygen import estimate_cost
+
+            balance = client.balance()
+            if balance is not None:
+                per_render = estimate_cost(config.TARGET_SECONDS)
+                affordable = int(balance // per_render) if per_render else 0
+                yield Check(
+                    "heygen balance",
+                    affordable >= 1,
+                    f"${balance:.2f} — about {affordable} render(s) of "
+                    f"{config.TARGET_SECONDS}s at ${per_render:.2f} each",
+                )
+
+            avatar_id = config.env("QUINN_AVATAR_ID")
+            if avatar_id:
+                looked_up = client.avatar(avatar_id)
+                engines = ",".join(
+                    e.replace("avatar_", "") for e in (looked_up or {}).get(
+                        "supported_api_engines"
+                    ) or []
+                )
+                yield Check(
+                    "configured avatar",
+                    bool(looked_up),
+                    f"{(looked_up or {}).get('name', '?')} ({engines})"
+                    if looked_up
+                    else f"{avatar_id} not found on this account",
+                )
+
+            voice_id = config.env("QUINN_VOICE_ID")
+            if voice_id:
+                # The speech endpoint only accepts starfish voices, and only
+                # starfish returns the word timestamps everything downstream
+                # is timed against.
+                match = next(
+                    (
+                        v
+                        for v in client.voices(engine="starfish", max_items=400)
+                        if (v.get("id") or v.get("voice_id")) == voice_id
+                    ),
+                    None,
+                )
+                yield Check(
+                    "configured voice",
+                    bool(match),
+                    f"{match.get('name', '?')} — starfish, word timestamps supported"
+                    if match
+                    else f"{voice_id} is not a starfish voice — captions cannot be timed",
+                )
     except HeyGenError as exc:
         yield Check("heygen api", False, str(exc).splitlines()[0])
     except Exception as exc:  # network, auth, anything else
@@ -206,45 +248,105 @@ def run() -> int:
     return 0
 
 
-def list_avatars() -> int:
-    """Print avatars as a pickable table. Transparent output needs a
-    matting-trained avatar, and the API exposes no flag for that -- newer
-    avatars have it, so we surface engine support as the best proxy."""
-    from .heygen import HeyGen
+def list_avatars(search: str | None = None, *, private_only: bool = False, limit: int = 40) -> int:
+    """Print a shortlist of avatars worth using for a vertical video.
 
-    with HeyGen() as client:
-        avatars = client.avatars()
+    HeyGen exposes roughly ten thousand avatars, most of them landscape studio
+    presenters that would be cropped to pieces at 9:16. This filters to
+    portrait looks on the newer engines and stops at a readable number, rather
+    than printing a catalogue nobody will read.
 
-    print(f"\n{len(avatars)} avatars\n")
-    print(f"  {'id':<40} {'name':<26} {'orient':<10} {'engines'}")
-    print(f"  {'-' * 40} {'-' * 26} {'-' * 10} {'-' * 20}")
-    for avatar in avatars:
+    Transparent output additionally needs a matting-trained avatar, and no
+    field advertises that. Newer engines are the best available proxy, so
+    avatar_v and avatar_iv looks are listed first.
+    """
+    mine, pool = _avatar_catalogue()
+
+    def usable(a: dict) -> bool:
+        if a.get("status") not in (None, "completed"):
+            return False
+        if search and search.lower() not in (a.get("name") or "").lower():
+            return False
+        return True
+
+    def rank(a: dict) -> tuple:
+        engines = a.get("supported_api_engines") or []
+        return (
+            0 if a.get("id") in {m.get("id") for m in mine} else 1,
+            0 if "avatar_v" in engines else 1 if "avatar_iv" in engines else 2,
+            0 if a.get("preferred_orientation") == "portrait" else 1,
+            (a.get("name") or "").lower(),
+        )
+
+    own_ids = {m.get("id") for m in mine}
+    shortlist = sorted((a for a in pool if usable(a)), key=rank)[:limit]
+
+    print(f"\n{len(shortlist)} shown ({len(mine)} on your account)\n")
+    print(f"  {'':2} {'id':<38} {'name':<26} {'orient':<9} {'engines'}")
+    print(f"  {'':2} {'-' * 38} {'-' * 26} {'-' * 9} {'-' * 18}")
+    for avatar in shortlist:
         engines = ",".join(
             e.replace("avatar_", "") for e in avatar.get("supported_api_engines") or []
         )
+        mark = "*" if avatar.get("id") in own_ids else " "
         print(
-            f"  {(avatar.get('id') or '')[:40]:<40} "
+            f"  {mark:2} {(avatar.get('id') or '')[:38]:<38} "
             f"{(avatar.get('name') or '')[:26]:<26} "
-            f"{(avatar.get('preferred_orientation') or '-'):<10} "
+            f"{(avatar.get('preferred_orientation') or '-'):<9} "
             f"{engines}"
         )
-    print("\nPortrait avatars supporting avatar_iv/v are the best fit for 9:16.")
-    print("Set QUINN_AVATAR_ID in .env to your pick.\n")
+    print("\n  * = on your account. Portrait looks are listed first: they are")
+    print("  natively 1080x1920, so nothing is cropped away at 9:16.")
+    print("  Set QUINN_AVATAR_ID in .env to your pick.\n")
     return 0
 
 
-def list_voices() -> int:
+def _avatar_catalogue(scan: int = 4000, ttl_hours: int = 24) -> tuple[list[dict], list[dict]]:
+    """Fetch (and cache) enough of the avatar catalogue to choose from.
+
+    HeyGen paginates fifty at a time and the public library runs to five
+    figures, so a full scan is dozens of round trips. Portrait looks -- the
+    ones that need no cropping at 9:16 -- are scattered deep in it, so we have
+    to go reasonably far in and then keep what we found.
+    """
+    import json
+    import time
+
+    from .heygen import HeyGen
+
+    cache = config.REPO_ROOT / "cache" / "avatars.json"
+    if cache.exists() and (time.time() - cache.stat().st_mtime) < ttl_hours * 3600:
+        stored = json.loads(cache.read_text(encoding="utf-8"))
+        return stored["mine"], stored["pool"]
+
+    with HeyGen() as client:
+        mine = client.avatars(ownership="private", max_items=100)
+        pool = list(mine) + client.avatars(ownership="public", max_items=scan)
+
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps({"mine": mine, "pool": pool}), encoding="utf-8")
+    return mine, pool
+
+
+def list_voices(search: str | None = None, *, limit: int = 40) -> int:
+    """Print starfish voices -- the only engine that returns word timestamps."""
     from .heygen import HeyGen
 
     with HeyGen() as client:
-        voices = client.voices(engine="starfish", language="en")
+        voices = client.voices(engine="starfish", language="en", max_items=600)
 
-    print(f"\n{len(voices)} starfish voices (English)\n")
-    for voice in voices:
+    if search:
+        voices = [v for v in voices if search.lower() in (v.get("name") or "").lower()]
+
+    shown = voices[:limit]
+    print(f"\n{len(shown)} shown of {len(voices)} English starfish voices\n")
+    for voice in shown:
         vid = voice.get("id") or voice.get("voice_id") or ""
         print(
             f"  {vid:<40} {(voice.get('name') or '')[:24]:<24} "
             f"{voice.get('gender') or '-':<8} {voice.get('language') or ''}"
         )
-    print("\nSet QUINN_VOICE_ID in .env to your pick.\n")
+    print("\n  Only starfish voices return word-level timestamps, which the")
+    print("  captions and b-roll cuts are both timed against.")
+    print("  Set QUINN_VOICE_ID in .env to your pick.\n")
     return 0

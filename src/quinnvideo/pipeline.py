@@ -16,7 +16,7 @@ from . import captions, compose, ff
 from .align import BeatTiming, align
 from .compose import Composition, Segment
 from .config import require
-from .heygen import HeyGen, Speech, download
+from .heygen import HeyGen, HeyGenError, Speech, download, estimate_cost
 from .runs import Run
 from .storyboard import Storyboard
 
@@ -69,6 +69,7 @@ def render_avatar(
     *,
     avatar_id: str | None = None,
     transparent: bool = True,
+    engine: str = "avatar_iv",
     force: bool = False,
     log: Log = _noop,
 ) -> Path:
@@ -81,6 +82,17 @@ def render_avatar(
 
     log("avatar: queuing render")
     with HeyGen() as client:
+        # The single most expensive call in the pipeline. Check first: running
+        # dry mid-render wastes the narration we have already paid for.
+        cost = estimate_cost(speech.duration, engine)
+        balance = client.balance()
+        if balance is not None:
+            log(f"avatar: ~${cost:.2f} for {speech.duration:.0f}s, ${balance:.2f} available")
+            if balance < cost:
+                raise HeyGenError(
+                    f"insufficient balance: this render costs about ${cost:.2f} and the "
+                    f"wallet holds ${balance:.2f}. Shorten the script or top up."
+                )
         video_id = client.create_avatar_video(
             avatar_id,
             speech.audio_url,

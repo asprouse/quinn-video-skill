@@ -48,6 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
     group = doctor.add_mutually_exclusive_group()
     group.add_argument("--list-avatars", action="store_true", help="print pickable avatar ids")
     group.add_argument("--list-voices", action="store_true", help="print pickable voice ids")
+    doctor.add_argument("--search", help="filter the listing by name")
+    doctor.add_argument("--limit", type=int, default=40, help="how many to show")
 
     sub.add_parser("fonts", help="download the bundled caption typefaces")
 
@@ -96,9 +98,9 @@ def _dispatch(args: argparse.Namespace) -> int:
         from . import doctor
 
         if args.list_avatars:
-            return doctor.list_avatars()
+            return doctor.list_avatars(args.search, limit=args.limit)
         if args.list_voices:
-            return doctor.list_voices()
+            return doctor.list_voices(args.search, limit=args.limit)
         return doctor.run()
 
     if args.command == "fonts":
