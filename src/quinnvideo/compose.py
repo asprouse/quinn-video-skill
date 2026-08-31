@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import ff
-from .config import FPS, HEIGHT, SAFE_BOTTOM, SAFE_RIGHT, WIDTH
+from .config import FPS, HEIGHT, WIDTH
 
 
 @dataclass
@@ -45,16 +45,20 @@ class Stage:
     anchor: str = "bottom-right"  # bottom-right | bottom-left | bottom-center
 
     def position(self) -> tuple[str, str]:
-        """Overlay x/y expressions, kept clear of the platform UI."""
-        margin = 36
+        """Overlay x/y expressions.
+
+        Both stages sit the presenter on the bottom edge of the frame. A
+        cut-out figure floating with a gap beneath it reads as a sticker; one
+        grounded to the edge reads as standing in the scene.
+        """
         if self.scale >= 0.98:
-            return "0", "H-h"  # full-bleed presenter, feet at the frame edge
-        bottom = f"H-h-{SAFE_BOTTOM - 120}"
+            return "(W-w)/2", "H-h"
+        margin, floor = 30, 8
         if self.anchor == "bottom-left":
-            return str(margin), bottom
+            return str(margin), f"H-h-{floor}"
         if self.anchor == "bottom-center":
-            return "(W-w)/2", bottom
-        return f"W-w-{SAFE_RIGHT - 60}", bottom
+            return "(W-w)/2", f"H-h-{floor}"
+        return f"W-w-{margin}", f"H-h-{floor}"
 
 
 @dataclass
@@ -186,8 +190,13 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     current = "[0:v]"
 
     if avatar_index is not None:
-        chains += _avatar_chains(comp, avatar_index)
-        for n, stage in enumerate(comp.stages or _default_stages(comp.duration)):
+        # Crop to where the presenter actually is before scaling. The render
+        # is a full 1080x1920 frame with a lot of transparent space above the
+        # head; scaling that whole frame shrinks the empty space too and
+        # leaves a bust floating in the middle of the video.
+        crop = ff.alpha_bbox(comp.avatar) if comp.avatar else None
+        chains += _avatar_chains(comp, avatar_index, crop)
+        for n, stage in enumerate(comp.stages or default_stages(comp.duration)):
             x, y = stage.position()
             nxt = f"[av{n}]"
             chains.append(
@@ -228,18 +237,24 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     return dest
 
 
-def _avatar_chains(comp: Composition, avatar_index: int) -> list[str]:
-    """Pre-scale one copy of the avatar per staging size."""
-    stages = comp.stages or _default_stages(comp.duration)
-    chains = [f"[{avatar_index}:v]format=yuva420p,split={len(stages)}"
-              + "".join(f"[avsrc{n}]" for n in range(len(stages)))]
+def _avatar_chains(
+    comp: Composition, avatar_index: int, crop: tuple[int, int, int, int] | None
+) -> list[str]:
+    """Crop the presenter out of the render, then pre-scale one copy per stage."""
+    stages = comp.stages or default_stages(comp.duration)
+    trim = f",crop={crop[2]}:{crop[3]}:{crop[0]}:{crop[1]}" if crop else ""
+    chains = [
+        f"[{avatar_index}:v]format=yuva420p{trim},split={len(stages)}"
+        + "".join(f"[avsrc{n}]" for n in range(len(stages)))
+    ]
     for n, stage in enumerate(stages):
+        # scale is a fraction of frame width, applied to the cropped figure.
         width = round(WIDTH * stage.scale / 2) * 2
         chains.append(f"[avsrc{n}]scale={width}:-2[avs{n}]")
     return chains
 
 
-def _default_stages(duration: float) -> list[Stage]:
+def default_stages(duration: float) -> list[Stage]:
     """Presenter full-bleed for the hook, then out of the way.
 
     The first three seconds decide whether anyone watches the rest, and a
@@ -249,8 +264,34 @@ def _default_stages(duration: float) -> list[Stage]:
     hook = min(3.0, duration * 0.12)
     return [
         Stage(start=0.0, end=hook, scale=1.0),
-        Stage(start=hook, end=duration, scale=0.42, anchor="bottom-right"),
+        # Small enough to leave the footage and the captions room, large
+        # enough that the presenter still reads as a person and not a badge.
+        Stage(start=hook, end=duration, scale=0.40, anchor="bottom-right"),
     ]
+
+
+def stage_rect(stage: Stage, avatar: Path | None) -> list[int]:
+    """Where the presenter lands on the canvas for one stage: [x, y, w, h].
+
+    Mirrors the filter graph rather than guessing, so the grader is checking
+    the geometry that actually rendered.
+    """
+    if avatar is None:
+        return [0, 0, 0, 0]
+    _, _, cw, ch = ff.alpha_bbox(avatar)
+    width = round(WIDTH * stage.scale / 2) * 2
+    height = round(width * ch / cw / 2) * 2
+
+    if stage.scale >= 0.98:
+        return [(WIDTH - width) // 2, HEIGHT - height, width, height]
+    margin, floor = 30, 8
+    if stage.anchor == "bottom-left":
+        x = margin
+    elif stage.anchor == "bottom-center":
+        x = (WIDTH - width) // 2
+    else:
+        x = WIDTH - width - margin
+    return [x, HEIGHT - height - floor, width, height]
 
 
 def _audio_chain(narration_index: int, music_index: int | None, gain: float) -> str:

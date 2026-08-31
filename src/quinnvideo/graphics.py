@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageDraw, ImageFont
 
 from . import fonts
-from .config import HEIGHT, SAFE_BOTTOM, WIDTH
+from .config import HEIGHT, WIDTH
 
 # High-visibility yellow. Borrowed from the safety vests the footage is full
 # of, which makes the accent feel native to the subject rather than applied.
@@ -37,9 +37,9 @@ class CaptionStyle:
     shadow_alpha: int = 150
     max_width: int = WIDTH - 150
 
-    # Captions sit above the platform UI but below the middle of the frame,
-    # where they overlap the least interesting part of most footage.
-    baseline_y: int = HEIGHT - SAFE_BOTTOM - 210
+    # High enough to clear the cornered presenter, low enough to stay out of
+    # the way of whatever the footage is actually showing.
+    baseline_y: int = HEIGHT - 800
 
     spoken: tuple[int, int, int, int] = WHITE
     active: tuple[int, int, int, int] = HI_VIS
@@ -231,6 +231,8 @@ def blank() -> Image.Image:
 
 
 def render_card(text: str, dest, *, kicker: str = "", accent=HI_VIS):
+    # NOTE: `kicker` is shown to the viewer. Never pass internal plumbing --
+    # a search query or a visual intent -- into it.
     """A designed full-frame card, used when no honest footage exists.
 
     This is the last rung of the b-roll fallback ladder. The brief forbids

@@ -70,6 +70,12 @@ class MattingUnsupported(HeyGenError):
     """
 
 
+def _is_sentinel(token: str) -> bool:
+    """True for the non-spoken markers HeyGen wraps around the word stream."""
+    stripped = token.strip()
+    return stripped.startswith("<") and stripped.endswith(">")
+
+
 @dataclass(frozen=True)
 class Word:
     """One spoken word and when it lands."""
@@ -265,6 +271,10 @@ class HeyGen:
             words=[
                 Word(word=w["word"], start=float(w["start"]), end=float(w["end"]))
                 for w in timestamps
+                # HeyGen brackets the stream with <start> and <end> markers.
+                # They are not spoken, and left in they would appear on screen
+                # as literal caption words.
+                if not _is_sentinel(w["word"])
             ],
         )
 

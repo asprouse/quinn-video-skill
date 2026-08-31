@@ -22,7 +22,7 @@ from itertools import pairwise
 from pathlib import Path
 
 from . import ff
-from .config import HEIGHT, SAFE_BOTTOM, WIDTH
+from .config import HEIGHT, WIDTH
 from .heygen import Word
 from .runs import Run
 
@@ -31,10 +31,6 @@ from .runs import Run
 DEAD_AIR = 0.6
 
 MAX_SHOT = 4.0
-
-# Below this Michelson-style contrast the caption band is competing with the
-# footage behind it and the stroke is doing all the work.
-LOW_CONTRAST = 0.22
 
 SAMPLE_INTERVAL = 0.5
 
@@ -117,32 +113,23 @@ def sample_frames(video: Path, directory: Path, interval: float = SAMPLE_INTERVA
 
 
 def frame_stats(path: Path) -> dict:
-    """Brightness overall, and contrast within the caption band.
+    """Overall brightness. Enough to catch a dead or failed shot.
 
-    Captions are stroked and shadowed so they stay legible in most conditions,
-    but a band of mid-grey busy texture behind them is still hard work for the
-    eye, and that is what this looks for.
+    An earlier version scored contrast in the caption band and flagged
+    anything busy. It fired on seventy percent of frames, because busy
+    footage is the normal case and the captions carry a nine-pixel stroke
+    that keeps them readable over it. A check that fires that often is not a
+    detector, it is noise, and it trains you to skim the report. Whether a
+    frame is *hard to read* is a judgement, and it belongs to the reviewer
+    looking at the frames -- not to a threshold.
     """
     from PIL import Image
 
-    image = Image.open(path).convert("L")
-    w, h = image.size
+    with Image.open(path) as handle:
+        image = handle.convert("L")
+        pixels = list(image.getdata())
 
-    # The caption band, in the same proportions the renderer uses.
-    top = int(h * (HEIGHT - SAFE_BOTTOM - 300) / HEIGHT)
-    bottom = int(h * (HEIGHT - SAFE_BOTTOM) / HEIGHT)
-    band = image.crop((0, max(0, top), w, min(h, bottom)))
-
-    pixels = list(band.getdata())
-    mean = statistics.fmean(pixels) if pixels else 0.0
-    spread = statistics.pstdev(pixels) if len(pixels) > 1 else 0.0
-
-    full = list(image.getdata())
-    return {
-        "brightness": round(statistics.fmean(full) / 255, 3),
-        "band_mean": round(mean / 255, 3),
-        "band_contrast": round(spread / 128, 3),
-    }
+    return {"brightness": round(statistics.fmean(pixels) / 255, 3)}
 
 
 # --- the grader ----------------------------------------------------------
@@ -216,12 +203,8 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
                 Finding("blocker", at, "black frame", "frame is essentially black",
                         "the shot at this point is missing or failed to decode"),
             )
-        elif stats["band_contrast"] > 0.34 and 0.25 < stats["band_mean"] < 0.75:
-            report.findings.append(
-                Finding("warn", at, "caption legibility",
-                        "busy mid-tone footage behind the caption band",
-                        "pick a shot with a calmer lower third"),
-            )
+
+    report.findings.extend(_staging_findings(run, words))
 
     # The first two seconds decide everything, so they get their own check.
     opening = [f for f in report.frames if f["at"] <= 2.0]
@@ -233,6 +216,57 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
     log(f"grade: {len(report.blockers)} blockers, {len(report.findings)} findings")
     return report
+
+
+def _staging_findings(run: Run, words: list[Word]) -> list[Finding]:
+    """Check the presenter is not parked on top of the captions.
+
+    This is the failure the eye catches instantly and no brightness threshold
+    ever will: a cut-out avatar overlapping the caption line. The geometry is
+    recorded at compose time, so it can be checked exactly rather than
+    inferred from pixels.
+    """
+    from .captions import group_words
+    from .graphics import CaptionStyle
+
+    staging = run.state().get("staging") or []
+    if not staging:
+        return []
+
+    style = CaptionStyle()
+    # Captions are centred and grow upward from the baseline.
+    cap_top = style.baseline_y - style.size
+    cap_bottom = style.baseline_y + style.size
+
+    findings: list[Finding] = []
+    groups = group_words(words)
+
+    for stage in staging:
+        x, y, w, h = stage["rect"]
+        if h <= 0:
+            continue
+        overlaps_rows = y < cap_bottom and (y + h) > cap_top
+        if not overlaps_rows:
+            continue
+        # Full-bleed staging covers the whole width; captions land on the
+        # presenter's chest, which is conventional in the format.
+        if stage["scale"] >= 0.98:
+            continue
+
+        during = [g for g in groups if g.start < stage["end"] and g.end > stage["start"]]
+        if not during:
+            continue
+        findings.append(
+            Finding(
+                "warn",
+                round(stage["start"], 2),
+                "avatar staging",
+                f"presenter occupies x{x}-{x + w}, y{y}-{y + h}, "
+                f"crossing the caption line while {len(during)} phrases are on screen",
+                "shrink the presenter, move it lower, or raise the captions",
+            )
+        )
+    return findings
 
 
 def _audio_findings(video: Path) -> list[Finding]:

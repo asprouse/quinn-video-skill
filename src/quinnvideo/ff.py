@@ -66,6 +66,46 @@ def video_stream(path: Path) -> dict[str, Any]:
     raise FFmpegError(f"{path} has no video stream")
 
 
+def alpha_bbox(video: Path, samples: int = 5) -> tuple[int, int, int, int]:
+    """Bounding box of the non-transparent content in an alpha video.
+
+    A HeyGen avatar arrives as a full 1080x1920 frame with the presenter
+    somewhere inside it and everything else transparent. Scaling that whole
+    frame to put the presenter in a corner scales the empty space too, which
+    leaves a bust floating in the middle of the video. So: find where the
+    person actually is, and place *that*.
+
+    Sampled across several frames and unioned, because the presenter moves.
+    """
+    from PIL import Image
+
+    duration = globals()["duration"](video)
+    left = top = 10**9
+    right = bottom = 0
+
+    for index in range(samples):
+        at = duration * (index + 0.5) / samples
+        frame = video.parent / f".bbox-{index}.png"
+        run(["-c:v", "libvpx-vp9", "-ss", f"{at:.3f}", "-i", str(video),
+             "-frames:v", "1", "-pix_fmt", "rgba", str(frame)])
+        with Image.open(frame) as image:
+            box = image.convert("RGBA").getchannel("A").getbbox()
+        frame.unlink(missing_ok=True)
+        if not box:
+            continue
+        left, top = min(left, box[0]), min(top, box[1])
+        right, bottom = max(right, box[2]), max(bottom, box[3])
+
+    if right <= left or bottom <= top:
+        stream = video_stream(video)
+        return 0, 0, int(stream["width"]), int(stream["height"])
+
+    # Even widths and heights keep libx264 and the scaler happy.
+    width = (right - left) // 2 * 2
+    height = (bottom - top) // 2 * 2
+    return left, top, max(2, width), max(2, height)
+
+
 class AlphaWriter:
     """Stream RGBA frames from Pillow into a lossless alpha-preserving file.
 

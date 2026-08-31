@@ -15,7 +15,7 @@ from pathlib import Path
 from . import captions, compose, ff
 from .align import BeatTiming, align
 from .compose import Composition, Segment
-from .config import require
+from .config import VOICE_SPEED, require
 from .heygen import HeyGen, HeyGenError, Speech, download, estimate_cost
 from .runs import Run
 from .storyboard import Storyboard
@@ -35,7 +35,7 @@ def narrate(
     board: Storyboard,
     *,
     voice_id: str | None = None,
-    speed: float = 1.0,
+    speed: float | None = None,
     force: bool = False,
     log: Log = _noop,
 ) -> Speech:
@@ -45,6 +45,7 @@ def narrate(
     both reused unless explicitly forced.
     """
     voice_id = voice_id or require("QUINN_VOICE_ID", "narration")
+    speed = VOICE_SPEED if speed is None else speed
 
     if run.speech_path.exists() and run.has(run.audio) and not force:
         log("narration: cached")
@@ -141,40 +142,46 @@ def render_overlay(
 
 def plan_segments(
     timings: list[BeatTiming],
-    picks: dict[int, Path],
+    picks: dict[int, list[Path]],
     *,
     max_shot: float = 4.0,
     log: Log = _noop,
 ) -> list[Segment]:
     """Turn beat timings plus chosen footage into a cut list.
 
-    A beat that outlasts ``max_shot`` is split across repeats of its own clip
-    rather than held on one frame. Short-form dies on a static shot, and the
-    brief asks for a *fast-moving* slideshow, so nothing sits longer than four
-    seconds without a cut.
+    A beat that outlasts ``max_shot`` is cut into several shots. Short-form
+    dies on a static frame and the brief asks for a *fast-moving* slideshow,
+    so nothing sits longer than four seconds without a cut.
+
+    A beat may carry more than one clip, and the cuts rotate through them.
+    That matters because the long beats are the ones most in need of variety:
+    holding a single clip for nine seconds reads as a stall no matter how
+    well it matches the narration.
     """
     segments: list[Segment] = []
 
     for timing in timings:
-        source = picks.get(timing.beat.id)
-        if source is None:
+        sources = picks.get(timing.beat.id) or []
+        if not sources:
             log(f"beat {timing.beat.id}: no footage, skipped")
             continue
 
-        is_still = source.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
         span = max(0.4, timing.duration)
-        shots = max(1, round(span / max_shot + 0.35))
+        # Never fewer shots than we have clips for this beat -- a second clip
+        # the reviewer chose should always make it on screen.
+        shots = max(len(sources), 1, round(span / max_shot + 0.35))
         each = span / shots
 
         for n in range(shots):
+            source = sources[n % len(sources)]
             segments.append(
                 Segment(
                     source=source,
                     start=timing.start + n * each,
                     duration=each,
-                    is_still=is_still,
+                    is_still=source.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"},
                     # Alternate the Ken Burns direction so repeated shots of
-                    # the same still do not read as a loop.
+                    # one still do not read as a loop.
                     zoom_in=(len(segments) % 2 == 0),
                 )
             )
@@ -209,6 +216,21 @@ def build(
 
     log("compose: laying avatar, captions, audio")
     compose.build_final(comp, run.base, run.final)
+
+    # Record where the presenter ended up. The grader needs the geometry to
+    # tell whether it is sitting on top of the captions, and that is not
+    # recoverable from the finished mp4.
+    run.update_state(
+        staging=[
+            {
+                "start": st.start, "end": st.end, "scale": st.scale,
+                "anchor": st.anchor, "rect": compose.stage_rect(st, comp.avatar),
+            }
+            for st in (comp.stages or compose.default_stages(comp.duration))
+        ]
+        if comp.avatar
+        else []
+    )
 
     info = ff.probe(run.final)
     stream = next(s for s in info["streams"] if s["codec_type"] == "video")

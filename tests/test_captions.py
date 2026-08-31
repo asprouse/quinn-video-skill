@@ -74,3 +74,17 @@ def test_active_word_tracks_the_clock():
     assert group.active_index(0.85) == 2
     # After the phrase ends the last word stays lit rather than blinking off.
     assert group.active_index(5.0) == 2
+
+
+def test_sentinel_tokens_never_reach_the_captions():
+    """HeyGen brackets its word stream with <start>/<end>.
+
+    Left in, they render on screen as literal caption words.
+    """
+    from quinnvideo.heygen import _is_sentinel
+
+    assert _is_sentinel("<start>")
+    assert _is_sentinel("<end>")
+    assert _is_sentinel("  <end> ")
+    assert not _is_sentinel("ladder")
+    assert not _is_sentinel("4<5")

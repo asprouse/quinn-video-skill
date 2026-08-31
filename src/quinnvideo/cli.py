@@ -188,15 +188,28 @@ def _dispatch(args: argparse.Namespace) -> int:
         board = run.storyboard()
         by_id = {b.id: b for b in board.beats}
 
-        real = {int(k): v for k, v in picks.items() if not v.get("card")}
-        resolved = broll.fetch_picks(run, real, log=_log) if real else {}
-
+        # A beat may carry one pick or several; normalise to a list either way.
+        wanted: dict[int, list[dict]] = {}
+        cards: list[int] = []
         for key, value in picks.items():
-            if value.get("card"):
-                resolved[int(key)] = broll.fallback_card(run, by_id[int(key)], log=_log)
+            entries = value if isinstance(value, list) else [value]
+            real = [e for e in entries if not e.get("card")]
+            if any(e.get("card") for e in entries):
+                cards.append(int(key))
+            if real:
+                wanted[int(key)] = real
 
-        run.update_state(picks={str(k): str(v) for k, v in resolved.items()})
-        _log(f"\n{len(resolved)} of {len(board.beats)} beats have footage.")
+        resolved = broll.fetch_picks(run, wanted, log=_log) if wanted else {}
+        for beat_id in cards:
+            resolved.setdefault(beat_id, []).append(
+                broll.fallback_card(run, by_id[beat_id], log=_log)
+            )
+
+        run.update_state(
+            picks={str(k): [str(p) for p in v] for k, v in sorted(resolved.items())}
+        )
+        shots = sum(len(v) for v in resolved.values())
+        _log(f"\n{len(resolved)} of {len(board.beats)} beats have footage ({shots} clips).")
         return 0
 
     if args.command == "build":
@@ -208,7 +221,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         timings = pipeline.timings_for(run, board, speech, log=_log)
         pipeline.render_overlay(run, speech, log=_log)
 
-        picks = {int(k): Path(v) for k, v in (run.state().get("picks") or {}).items()}
+        picks = {
+            int(k): [Path(p) for p in (v if isinstance(v, list) else [v])]
+            for k, v in (run.state().get("picks") or {}).items()
+        }
         if not picks:
             raise FileNotFoundError(
                 "no footage selected for this run — run `quinn-video broll` then `fetch`"

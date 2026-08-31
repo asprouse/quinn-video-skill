@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .config import MAX_SECONDS, MIN_SECONDS, TARGET_SECONDS
+from .config import MAX_SECONDS, MIN_SECONDS, TARGET_SECONDS, TARGET_WPM
 
 
 class Visual(BaseModel):
@@ -100,10 +100,10 @@ class Storyboard(BaseModel):
     def word_count(self) -> int:
         return len(self.narration.split())
 
-    def estimated_seconds(self, wpm: int = 165) -> float:
+    def estimated_seconds(self, wpm: int = TARGET_WPM) -> float:
         return self.word_count / wpm * 60
 
-    def pacing_note(self, wpm: int = 165) -> str:
+    def pacing_note(self, wpm: int = TARGET_WPM) -> str:
         estimate = self.estimated_seconds(wpm)
         if estimate < MIN_SECONDS:
             short_by = int((MIN_SECONDS - estimate) * wpm / 60)

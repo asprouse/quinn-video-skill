@@ -125,32 +125,38 @@ def _cache_thumb(candidate: Candidate, directory: Path) -> Path | None:
         return None
 
 
-def fetch_picks(run: Run, picks: dict[int, dict[str, str]], *, log: Log = _noop) -> dict[int, Path]:
-    """Download the full-size asset for each accepted candidate.
+def fetch_picks(
+    run: Run, picks: dict[int, list[dict[str, str]]], *, log: Log = _noop
+) -> dict[int, list[Path]]:
+    """Download the full-size asset for every accepted candidate.
 
-    ``picks`` maps beat id to ``{"provider":..., "ident":..., "download_url":...}``
-    as chosen from the candidate manifest.
+    ``picks`` maps a beat id to a list of ``{"provider":..., "ident":...}``
+    entries chosen from the candidate manifest. Several per beat is normal:
+    long beats need more than one shot to stay alive.
     """
     manifest = json.loads((run.broll_dir / "candidates.json").read_text(encoding="utf-8"))
+    # Keyed globally, not per beat. The same clip often surfaces under several
+    # beats' searches, and a reviewer who spots the right shot while reviewing
+    # one beat should be able to use it on any of them.
     lookup = {
-        (b["id"], c["provider"], c["ident"]): c
-        for b in manifest["beats"]
-        for c in b["candidates"]
+        (c["provider"], c["ident"]): c for b in manifest["beats"] for c in b["candidates"]
     }
 
-    resolved: dict[int, Path] = {}
+    resolved: dict[int, list[Path]] = {}
     with Stock() as stock:
-        for beat_id, pick in picks.items():
-            key = (int(beat_id), pick["provider"], pick["ident"])
-            entry = lookup.get(key)
-            if not entry:
-                log(f"beat {beat_id}: pick {pick} is not in the candidate manifest")
-                continue
-            candidate = Candidate(
-                **{k: v for k, v in entry.items() if k not in ("thumbnail", "vertical")}
-            )
-            resolved[int(beat_id)] = stock.fetch(candidate, run.broll_dir)
-            log(f"beat {beat_id}: {candidate.filename()}")
+        for beat_id, chosen in picks.items():
+            for pick in chosen:
+                entry = lookup.get((pick["provider"], pick["ident"]))
+                if not entry:
+                    log(f"beat {beat_id}: {pick} is in no beat's candidate list")
+                    continue
+                candidate = Candidate(
+                    **{k: v for k, v in entry.items() if k not in ("thumbnail", "vertical")}
+                )
+                resolved.setdefault(int(beat_id), []).append(
+                    stock.fetch(candidate, run.broll_dir)
+                )
+                log(f"beat {beat_id}: {candidate.filename()}")
 
     return resolved
 
@@ -158,8 +164,12 @@ def fetch_picks(run: Run, picks: dict[int, dict[str, str]], *, log: Log = _noop)
 def fallback_card(run: Run, beat: Beat, *, log: Log = _noop) -> Path:
     """Draw a designed card for a beat with no acceptable footage."""
     dest = run.broll_dir / f"card-beat-{beat.id}.jpg"
+    # The overlay text is authored for the screen; the headline falls back to
+    # the narration. visual.intent is a search instruction and must never
+    # appear -- it reads as debug output leaking into the video.
     text = beat.overlay.text if beat.overlay else _headline(beat)
-    graphics.render_card(text, dest, kicker=beat.visual.intent[:32])
+    kicker = "the rule" if beat.overlay and beat.overlay.kind == "rule" else ""
+    graphics.render_card(text, dest, kicker=kicker)
     log(f"beat {beat.id}: no footage cleared the bar — designed card instead")
     return dest
 

@@ -72,8 +72,16 @@ TARGET_SECONDS = max(
     MIN_SECONDS, min(MAX_SECONDS, int(os.environ.get("QUINN_TARGET_SECONDS") or 45))
 )
 
-# Short-form narration runs fast. Below ~140 wpm it feels like a lecture.
-TARGET_WPM = 165
+# Delivery speed passed to HeyGen. Its voices read *fast* -- Ray comes out at
+# 258 wpm at speed 1.0, which is auctioneer territory and unusable for
+# instruction. 0.8 lands near 198 wpm: quick enough for short-form, slow
+# enough to teach.
+VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 0.8)
+
+# Measured, not assumed. This is what the configured voice actually delivers
+# at VOICE_SPEED, and it is only an estimate for `check` -- the real duration
+# comes back with the narration.
+TARGET_WPM = int(os.environ.get("QUINN_TARGET_WPM") or 198)
 
 
 def words_for(seconds: float = TARGET_SECONDS) -> int:
