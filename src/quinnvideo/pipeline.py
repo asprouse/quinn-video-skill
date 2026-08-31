@@ -9,13 +9,13 @@ rebuilds only the visual stages.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
-from . import compose, captions, ff
+from . import captions, compose, ff
 from .align import BeatTiming, align
 from .compose import Composition, Segment
-from .config import Keys, env, require
+from .config import require
 from .heygen import HeyGen, Speech, download
 from .runs import Run
 from .storyboard import Storyboard
@@ -211,7 +211,9 @@ def build(
 # --- convenience ---------------------------------------------------------
 
 
-def timings_for(run: Run, board: Storyboard, speech: Speech, *, log: Log = _noop) -> list[BeatTiming]:
+def timings_for(
+    run: Run, board: Storyboard, speech: Speech, *, log: Log = _noop
+) -> list[BeatTiming]:
     timings = align(board, speech.words)
     estimated = [t for t in timings if not t.aligned]
     if estimated:

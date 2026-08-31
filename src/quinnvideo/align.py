@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from itertools import pairwise
 
 from .heygen import Word
 from .storyboard import Beat, Storyboard
@@ -148,7 +149,7 @@ def _fill_gaps(timings: list[BeatTiming], words: list[Word]) -> None:
         total_weight = sum(weights)
 
         offset = left
-        for timing, weight in zip(timings[run_start:run_end], weights):
+        for timing, weight in zip(timings[run_start:run_end], weights, strict=True):
             share = span * weight / total_weight
             timing.start = offset
             timing.end = offset + share
@@ -162,7 +163,7 @@ def _close_seams(timings: list[BeatTiming], words: list[Word]) -> None:
     gap where the b-roll has nothing to show. Each beat is stretched to meet
     the next one so the visual track is continuous.
     """
-    for current, following in zip(timings, timings[1:]):
+    for current, following in pairwise(timings):
         current.end = following.start
     if timings:
         timings[0].start = 0.0

@@ -8,6 +8,7 @@ of this pipeline commercially is unencumbered.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -81,10 +82,8 @@ def load(face: Face, size: int):
 
     font = ImageFont.truetype(str(face.path), size)
     if face.variation:
-        try:
+        # A static build of the same family, or a FreeType without variation
+        # support, leaves the default instance -- which is still usable.
+        with suppress(OSError):
             font.set_variation_by_name(face.variation)
-        except OSError:
-            # Static build of the same family, or a FreeType without variation
-            # support. The default instance is still perfectly usable.
-            pass
     return font

@@ -104,8 +104,8 @@ def build_base(comp: Composition, dest: Path) -> Path:
     graph += f";{''.join(labels)}concat=n={len(comp.segments)}:v=1:a=0[base]"
 
     ff.run(
-        args
-        + [
+        [
+            *args,
             "-filter_complex", graph,
             "-map", "[base]",
             "-c:v", "libx264",
@@ -205,8 +205,8 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     chains.append(_audio_chain(narration_index, music_index, comp.music_gain))
 
     ff.run(
-        args
-        + [
+        [
+            *args,
             "-filter_complex", ";".join(chains),
             "-map", "[vout]",
             "-map", "[aout]",

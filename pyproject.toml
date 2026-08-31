@@ -25,7 +25,13 @@ packages = ["src/quinnvideo"]
 line-length = 100
 target-version = "py311"
 
-[dependency-groups]
-dev = [
-    "pytest>=9.1.1",
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    # Network and codec fallbacks catch broadly on purpose: a thumbnail that
+    # will not download must degrade, not abort a paid render.
+    "BLE001",
 ]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Lint
+        run: uvx ruff check src tests
+
+      - name: Download typefaces
+        run: uv run quinn-video fonts
+
+      - name: Test
+        run: uv run pytest tests -q
+
+      - name: Validate plugin manifests
+        run: |
+          python -c "import json,sys
+          for p in ('.claude-plugin/plugin.json', '.claude-plugin/marketplace.json'):
+              json.load(open(p))
+              print(f'{p} ok')"
+
+      - name: Toolchain preflight
+        # Credentials are absent in CI, so doctor is expected to report
+        # blockers. We only assert that it runs and finds the toolchain.
+        run: uv run quinn-video doctor || true

@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 from . import config
 from .config import Keys
@@ -219,7 +219,9 @@ def list_avatars() -> int:
     print(f"  {'id':<40} {'name':<26} {'orient':<10} {'engines'}")
     print(f"  {'-' * 40} {'-' * 26} {'-' * 10} {'-' * 20}")
     for avatar in avatars:
-        engines = ",".join(e.replace("avatar_", "") for e in avatar.get("supported_api_engines") or [])
+        engines = ",".join(
+            e.replace("avatar_", "") for e in avatar.get("supported_api_engines") or []
+        )
         print(
             f"  {(avatar.get('id') or '')[:40]:<40} "
             f"{(avatar.get('name') or '')[:26]:<26} "

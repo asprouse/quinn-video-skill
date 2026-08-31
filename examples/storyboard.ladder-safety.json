@@ -1,0 +1,20 @@
+{
+  "topic": "ladder safety",
+  "target_seconds": 45,
+  "hook_variants": [
+    "Three hundred people die on ladders every year. Almost none of them were high up.",
+    "The most dangerous rung on a ladder is the one you think is safe.",
+    "You are more likely to die falling six feet than sixty."
+  ],
+  "beats": [
+    {"id": 1, "narration": "Three hundred people die on ladders every year.",
+     "visual": {"intent": "worker climbing an extension ladder on a job site", "queries": ["construction worker climbing ladder"], "prefer": "video"},
+     "emphasis": ["300", "die"], "overlay": {"kind": "stat", "text": "300 deaths a year"}},
+    {"id": 2, "narration": "Almost none of them were high up. Most fell from under ten feet.",
+     "visual": {"intent": "low stepladder in a warehouse", "queries": ["stepladder warehouse"], "prefer": "video"}},
+    {"id": 3, "narration": "Here is the rule that prevents it. For every four feet of height, pull the base one foot out.",
+     "visual": {"intent": "ladder leaning against a wall at a correct angle", "queries": ["ladder leaning wall angle"], "prefer": "video"},
+     "emphasis": ["four", "one"], "overlay": {"kind": "rule", "text": "4 to 1"}}
+  ],
+  "cta": "Check the angle before you climb."
+}

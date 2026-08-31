@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import pytest
 
 from quinnvideo.align import align, normalise
@@ -78,7 +80,7 @@ def test_timeline_is_continuous_and_starts_at_zero():
     timings = align(board, words)
 
     assert timings[0].start == 0.0
-    for current, following in zip(timings, timings[1:]):
+    for current, following in pairwise(timings):
         assert current.end == pytest.approx(following.start)
     assert all(t.duration > 0 for t in timings)
 

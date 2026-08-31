@@ -9,10 +9,11 @@ so a crash in compositing -- or a deliberate revision from the grading loop
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from .config import RUNS
 from .storyboard import Storyboard, slug
@@ -28,7 +29,7 @@ class Run:
 
     @classmethod
     def create(cls, topic: str, root: Path | None = None) -> Run:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         directory = (root or RUNS) / f"{slug(topic)}-{stamp}"
         directory.mkdir(parents=True, exist_ok=True)
         run = cls(directory)

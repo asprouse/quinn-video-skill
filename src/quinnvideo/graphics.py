@@ -141,7 +141,7 @@ class Renderer:
         top = style.baseline_y - (len(lines) - 1) * line_height
 
         positions: list[tuple[float, float]] = []
-        for row, (line, width) in enumerate(zip(lines, widths)):
+        for row, (line, width) in enumerate(zip(lines, widths, strict=True)):
             x = (WIDTH - width) / 2
             y = top + row * line_height
             for token in line:

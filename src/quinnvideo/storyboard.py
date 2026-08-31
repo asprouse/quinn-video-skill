@@ -106,9 +106,11 @@ class Storyboard(BaseModel):
     def pacing_note(self, wpm: int = 165) -> str:
         estimate = self.estimated_seconds(wpm)
         if estimate < MIN_SECONDS:
-            return f"too short: ~{estimate:.0f}s, add roughly {int((MIN_SECONDS - estimate) * wpm / 60)} words"
+            short_by = int((MIN_SECONDS - estimate) * wpm / 60)
+            return f"too short: ~{estimate:.0f}s, add roughly {short_by} words"
         if estimate > MAX_SECONDS:
-            return f"too long: ~{estimate:.0f}s, cut roughly {int((estimate - MAX_SECONDS) * wpm / 60)} words"
+            long_by = int((estimate - MAX_SECONDS) * wpm / 60)
+            return f"too long: ~{estimate:.0f}s, cut roughly {long_by} words"
         return f"on target: ~{estimate:.0f}s"
 
     # --- io ----------------------------------------------------------------

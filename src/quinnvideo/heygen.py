@@ -13,9 +13,10 @@ Three things we need from HeyGen, in pipeline order:
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, Literal
+from typing import Any, Literal
 
 import httpx
 
