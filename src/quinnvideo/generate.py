@@ -45,11 +45,55 @@ COST = {
 ASPECT_MODELS = {"fal-ai/flux-pro/v1.1-ultra"}
 
 # Appended to every prompt so a run's shots read as one shoot rather than a
-# collection of stock. Without it the lighting and grade wander between beats.
+# collection of stock. Without it the lighting, lens and grade wander between
+# beats, which is the single clearest tell that footage was assembled rather
+# than shot.
 HOUSE_STYLE = (
-    "Documentary photograph, real workplace, natural daylight, photorealistic, "
-    "sharp focus, muted colour grade, no text, no watermark."
+    "Shot on a 35mm lens at eye level, overcast natural daylight, muted "
+    "desaturated colour grade, documentary photograph of a real workplace, "
+    "photorealistic, sharp focus, no text, no watermark, no logos."
 )
+
+# A recurring subject does more for continuity than any amount of grading.
+# Without it every beat casts a different worker on a different site.
+DEFAULT_SUBJECT = (
+    "The same worker throughout: a man in his thirties wearing a yellow hi-vis "
+    "vest over a navy long-sleeved shirt, a white hard hat, and grey work trousers."
+)
+
+
+def _borders_are_flat(data: bytes, tolerance: int = 6, dark: int = 40) -> str | None:
+    """Detect letterboxing: uniform *dark* bars across the top and bottom.
+
+    Image models occasionally return a composed frame with bars baked in, and
+    cropping to fill then hands the compositor dead space nobody notices.
+
+    Uniformity alone is not enough to go on: a plain concrete wall or an
+    overcast sky is perfectly flat across a row and entirely legitimate. A
+    letterbox bar is flat *and* dark *and* markedly darker than the middle of
+    the picture, so all three are required before rejecting a frame.
+    """
+    import io
+    import statistics
+
+    from PIL import Image
+
+    with Image.open(io.BytesIO(data)) as image:
+        grey = image.convert("L")
+        w, h = grey.size
+
+        def band(y0: int, y1: int) -> tuple[float, float]:
+            pixels = list(grey.crop((0, y0, w, y1)).getdata())
+            return statistics.fmean(pixels), statistics.pstdev(pixels)
+
+        top_mean, top_sd = band(0, max(2, h // 40))
+        bottom_mean, bottom_sd = band(h - max(2, h // 40), h)
+        middle_mean, _ = band(h // 2 - h // 40, h // 2 + h // 40)
+
+    for name, mean, sd in (("top", top_mean, top_sd), ("bottom", bottom_mean, bottom_sd)):
+        if sd < tolerance and mean < dark and mean < middle_mean - 40:
+            return f"a flat dark bar runs across the {name} of the frame — it looks letterboxed"
+    return None
 
 
 class GenerationError(RuntimeError):
@@ -74,14 +118,15 @@ class Generated:
     seconds: float
 
 
-def build_prompt(intent: str, extra: str = "") -> str:
+def build_prompt(intent: str, extra: str = "", *, subject: str = DEFAULT_SUBJECT) -> str:
     """Turn a beat's visual intent into a prompt.
 
     The intent is already a description of a shot, which is exactly what an
-    image model wants -- so it carries over almost verbatim, with the house
-    style appended for consistency across the run.
+    image model wants, so it carries over almost verbatim -- with the subject
+    and house style appended so every shot in a run looks like the same
+    photographer followed the same worker around one site.
     """
-    parts = [intent.strip().rstrip(".") + ".", extra.strip(), HOUSE_STYLE]
+    parts = [intent.strip().rstrip(".") + ".", extra.strip(), subject, HOUSE_STYLE]
     return " ".join(p for p in parts if p)
 
 
@@ -130,6 +175,10 @@ def generate_still(
             f"{model} returned {got_w}x{got_h}, smaller than the {width}x{height} canvas. "
             "It would be upscaled. Use a model that honours the requested size."
         )
+
+    defect = _borders_are_flat(data)
+    if defect:
+        raise GenerationError(f"{model}: {defect}. Re-run to draw a different frame.")
 
     return Generated(
         path=dest,

@@ -193,6 +193,62 @@ def generate_shot(
     return dest
 
 
+def annotate_shot(
+    run: Run,
+    beat: Beat,
+    photo: Path,
+    spec: dict,
+    *,
+    duration: float = 4.0,
+    words: list | None = None,
+    start: float = 0.0,
+    log: Log = _noop,
+) -> Path:
+    """Draw the rule onto a real photograph instead of onto a black card.
+
+    The anchors in ``spec`` are read off the image by eye and written into
+    picks.json. They cannot be detected reliably, and a wrong anchor would
+    draw a confident annotation in the wrong place -- so the renderer checks
+    the geometry they imply and refuses if it does not match the rule being
+    taught.
+    """
+    from .diagrams import render_ladder_annotation
+
+    # Anchors are measured against one specific image. Generation is not
+    # deterministic, so pin them: if the photograph changed, the coordinates
+    # are stale and would draw the rule somewhere it does not belong. The
+    # ratio check in the renderer cannot catch this -- it validates the
+    # anchors against each other, not against the picture.
+    stamp = photo.stem.rsplit("-", 1)[-1]
+    expected = spec.get("for_image")
+    if expected and expected != stamp:
+        raise ValueError(
+            f"beat {beat.id}: anchors were measured on image {expected}, but the "
+            f"photograph is now {stamp}. Re-read the ladder's base and top off the "
+            "new image and update picks.json."
+        )
+    if not expected:
+        log(f"beat {beat.id}: anchors are not pinned — add \"for_image\": \"{stamp}\"")
+
+    dest = run.broll_dir / f"annotated-beat-{beat.id}-{stamp}.mp4"
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+
+    cues = _diagram_cues(beat, words or [], start, duration)
+    ratio = tuple(spec.get("ratio", [4, 1]))
+    log(f"beat {beat.id}: annotating {photo.name} with the {ratio[0]}:{ratio[1]} rule")
+    render_ladder_annotation(
+        photo,
+        dest,
+        duration,
+        base=tuple(spec["base"]),
+        top=tuple(spec["top"]),
+        ratio=ratio,
+        cues=cues,
+    )
+    return dest
+
+
 def fallback_card(
     run: Run,
     beat: Beat,

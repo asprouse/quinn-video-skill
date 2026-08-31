@@ -93,6 +93,33 @@ subject.
 Prompts are saved next to each image as a `.txt`, so a reviewer can see what was
 asked for and judge the result against it.
 
+## Annotating a real photograph
+
+Better than cutting away to a drawing on black: draw the rule onto an actual
+ladder, so the video never leaves the world it is teaching about.
+
+```json
+"3": [{"generate": "An aluminium extension ladder propped against a plain wall...",
+       "annotate": {"kind": "ladder-angle", "ratio": [4, 1],
+                    "base": [0.68, 0.90], "top": [0.36, 0.145],
+                    "for_image": "73246695"}}]
+```
+
+`base` and `top` are the ladder's feet and its contact with the wall, in
+normalised 0–1 frame coordinates. **Read them off the image by eye** — generate
+the photo first, look at it, then write the numbers. They cannot be detected
+reliably, and a wrong anchor draws a confident annotation in the wrong place.
+
+Two things this needs to be safe:
+
+- **Check the photograph actually shows the right angle.** Image models will
+  happily return a ladder flat against a wall. Annotating that with "4:1" would
+  teach the wrong thing with an authoritative label on it. The renderer refuses
+  if the anchors imply a ratio more than 25% off the rule.
+- **Pin the anchors with `for_image`.** Generation is not deterministic, so the
+  photo can change under coordinates measured on an older one. The build refuses
+  on a mismatch and tells you to re-measure.
+
 ## Generated diagrams
 
 Some ideas are geometric, and no stock library has footage of them. A rule

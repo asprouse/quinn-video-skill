@@ -251,3 +251,153 @@ def render_ladder_angle(
             writer.write(canvas.resize((WIDTH, HEIGHT), Image.LANCZOS))
 
     return dest
+
+
+def render_ladder_annotation(
+    photo: Path,
+    dest: Path,
+    duration: float,
+    *,
+    base: tuple[float, float],
+    top: tuple[float, float],
+    ratio: tuple[int, int] = (4, 1),
+    fps: int = FPS,
+    cues: dict[str, float] | None = None,
+    push: float = 0.05,
+) -> Path:
+    """Annotate a real photograph with the ladder geometry.
+
+    Drawing the rule on an actual ladder beats cutting away to a diagram on
+    black: the video never leaves the world it is teaching about, and the
+    viewer sees the ratio on the thing they will be standing on.
+
+    ``base`` and ``top`` are the ladder's feet and its contact with the wall,
+    in normalised 0-1 frame coordinates. They are read off the photograph by
+    eye rather than detected, because a wrong anchor here would draw a
+    confident annotation in the wrong place.
+    """
+    from PIL import Image, ImageDraw
+
+    from .ff import VideoWriter
+
+    up, out = ratio
+    cues = cues or {}
+    at_structure = cues.get("structure", 0.15)
+    at_ladder = cues.get("ladder", 0.55)
+    at_rise = cues.get("rise", 1.25)
+    at_run = cues.get("run", 1.70)
+
+    bx, by = base[0] * WIDTH * SS, base[1] * HEIGHT * SS
+    tx, ty = top[0] * WIDTH * SS, top[1] * HEIGHT * SS
+    corner = (tx, by)  # foot of the wall, directly below the top contact
+
+    rise_px, run_px = abs(by - ty), abs(tx - bx)
+    measured = rise_px / run_px if run_px else 0.0
+    target = up / out
+    if abs(measured - target) / target > 0.25:
+        raise ValueError(
+            f"the ladder in {photo.name} sits at {measured:.1f}:1, not {up}:{out}. "
+            "Annotating it with the rule would teach the wrong angle — "
+            "regenerate the photograph or correct the anchors."
+        )
+
+    angle = math.degrees(math.atan2(rise_px, run_px))
+    direction = 1 if bx > tx else -1  # which side the feet stand on
+
+    title = fonts.load(fonts.DISPLAY, 118 * SS)
+    label = fonts.load(fonts.DISPLAY, 84 * SS)
+    kicker = fonts.load(fonts.CAPTION, 32 * SS)
+    small = fonts.load(fonts.CAPTION, 30 * SS)
+
+    # Scale-to-cover once, up front; every frame is a crop of this.
+    source = Image.open(photo).convert("RGB")
+    scale = max(WIDTH * SS / source.width, HEIGHT * SS / source.height)
+    source = source.resize(
+        (round(source.width * scale), round(source.height * scale)), Image.LANCZOS
+    )
+    left = (source.width - WIDTH * SS) // 2
+    top_off = (source.height - HEIGHT * SS) // 2
+    source = source.crop((left, top_off, left + WIDTH * SS, top_off + HEIGHT * SS))
+
+    # A gradient scrim at the top so the title holds against a bright wall.
+    scrim = Image.new("L", (1, HEIGHT * SS))
+    for y in range(HEIGHT * SS):
+        scrim.putpixel((0, y), max(0, round(150 * (1 - y / (HEIGHT * SS * 0.42)))))
+    scrim = scrim.resize((WIDTH * SS, HEIGHT * SS))
+    source = Image.composite(Image.new("RGB", source.size, (8, 10, 14)), source, scrim)
+
+    frames = max(1, round(duration * fps))
+    with VideoWriter(dest, fps) as writer:
+        for n in range(frames):
+            t = n / fps
+            canvas = source.copy()
+            layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+            d = ImageDraw.Draw(layer)
+
+            fade = _phase(t, 0.0, 0.30)
+            if fade > 0.01:
+                d.text((96 * SS, 132 * SS), "THE RULE", font=kicker,
+                       fill=(*HI_VIS[:3], round(255 * fade)))
+                d.text((96 * SS, 180 * SS), f"{up} : {out}", font=title,
+                       fill=(*INK, round(255 * fade)))
+
+            g = _phase(t, at_structure, 0.40)
+            if g > 0.01:
+                span = (corner[0] - bx) * g
+                d.line([(bx, by), (bx + span, by)], fill=(*GROUND, 210), width=5 * SS)
+                w = _phase(t, at_structure + 0.15, 0.40)
+                if w > 0.01:
+                    d.line([(tx, by), (tx, by - (by - ty) * w)],
+                           fill=(*GROUND, 190), width=5 * SS)
+
+            trace = _phase(t, at_ladder, 0.60)
+            if trace > 0.01:
+                # Trace the ladder itself, so the eye is told what to look at.
+                d.line([(bx, by), (bx + (tx - bx) * trace, by + (ty - by) * trace)],
+                       fill=(*HI_VIS[:3], 235), width=7 * SS)
+                if trace > 0.9:
+                    r = 104 * SS
+                    start, end = (180 - angle, 180) if direction > 0 else (0, angle)
+                    d.arc([bx - r, by - r, bx + r, by + r], start=start, end=end,
+                          fill=(235, 240, 248, 200), width=4 * SS)
+                    d.text((bx - direction * 176 * SS, by - 78 * SS), f"{angle:.0f}°",
+                           font=small, fill=(235, 240, 248, 220))
+
+            r = _phase(t, at_rise, 0.45)
+            if r > 0.01:
+                x = tx - direction * 74 * SS
+                d.line([(x, by), (x, by - (by - ty) * r)], fill=(*HI_VIS[:3], 255), width=5 * SS)
+                d.line([(x - 22 * SS, by), (x + 22 * SS, by)],
+                       fill=(*HI_VIS[:3], 255), width=5 * SS)
+                if r > 0.95:
+                    _arrow(d, (x, ty), (0, -1), size=22 * SS, colour=(*HI_VIS[:3], 255))
+                    d.text((x - direction * 96 * SS, (by + ty) / 2 - 58 * SS), str(up),
+                           font=label, fill=(*HI_VIS[:3], 255))
+
+            ru = _phase(t, at_run, 0.45)
+            if ru > 0.01:
+                # Above the ground line, not below it: the feet usually sit
+                # near the bottom of the frame and anything drawn under them
+                # runs off the edge.
+                y = by - 54 * SS
+                d.line([(corner[0], y), (corner[0] + (bx - corner[0]) * ru, y)],
+                       fill=(*HI_VIS[:3], 255), width=5 * SS)
+                d.line([(corner[0], y - 20 * SS), (corner[0], y + 20 * SS)],
+                       fill=(*HI_VIS[:3], 255), width=5 * SS)
+                if ru > 0.95:
+                    _arrow(d, (bx, y), (direction, 0), size=22 * SS, colour=(*HI_VIS[:3], 255))
+                    d.text(((bx + corner[0]) / 2 - 22 * SS, y - 104 * SS), str(out),
+                           font=label, fill=(*HI_VIS[:3], 255))
+
+            canvas = Image.alpha_composite(canvas.convert("RGBA"), layer).convert("RGB")
+
+            # A slow push, so a still photograph does not sit dead on screen.
+            if push:
+                k = 1 + push * (t / max(duration, 0.001))
+                cw, ch = round(WIDTH * SS / k), round(HEIGHT * SS / k)
+                ox, oy = (WIDTH * SS - cw) // 2, (HEIGHT * SS - ch) // 2
+                canvas = canvas.crop((ox, oy, ox + cw, oy + ch))
+
+            writer.write(canvas.resize((WIDTH, HEIGHT), Image.LANCZOS))
+
+    return dest

@@ -235,14 +235,30 @@ def _dispatch(args: argparse.Namespace) -> int:
                 elif entry.get("generate"):
                     ai_beats.add(beat_id)
                     prompt = entry["generate"]
-                    resolved.setdefault(beat_id, []).append(
-                        broll.generate_shot(
+                    shot = broll.generate_shot(
+                        run,
+                        by_id[beat_id],
+                        prompt if isinstance(prompt, str) else None,
+                        log=_log,
+                    )
+                    if entry.get("annotate"):
+                        window = spans.get(beat_id, (0.0, 4.0))
+                        shot = broll.annotate_shot(
                             run,
                             by_id[beat_id],
-                            prompt if isinstance(prompt, str) else None,
+                            shot,
+                            entry["annotate"],
+                            duration=window[1],
+                            start=window[0],
+                            words=[
+                                w for w in speech.words
+                                if window[0] <= w.start < window[0] + window[1]
+                            ],
                             log=_log,
                         )
-                    )
+                        ai_beats.discard(beat_id)
+                        cards.append(beat_id)  # atomic: an animation plays once
+                    resolved.setdefault(beat_id, []).append(shot)
                 else:
                     fetched = broll.fetch_picks(run, {beat_id: [entry]}, log=_log)
                     resolved.setdefault(beat_id, []).extend(fetched.get(beat_id, []))
