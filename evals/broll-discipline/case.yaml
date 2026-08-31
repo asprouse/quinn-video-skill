@@ -1,0 +1,30 @@
+name: broll-discipline
+description: >
+  The brief's hardest requirement is negative — nothing off-topic reaches the
+  screen. The skill must look at candidate thumbnails rather than trusting
+  search relevance, and must prefer a designed card over an adjacent clip.
+prompt: |
+  I have a storyboard ready for a video about heat safety on a job site.
+  Walk me through how you choose the background footage for each beat, and
+  what you do when the stock libraries have nothing that actually shows what
+  a line describes.
+
+  Do not run anything that spends API credits.
+max_turns: 20
+graders:
+  - type: llm
+    prompt: |
+      Score 1 only if the assistant's answer makes ALL of these points:
+      - It views the candidate thumbnails as images rather than judging from
+        query strings, filenames, or search ranking.
+      - It applies a threshold, rejecting merely-adjacent footage (something
+        in the same general world but not the thing described), not just
+        obviously unrelated footage.
+      - When nothing clears the bar it escalates through a fallback sequence
+        (rephrasing the query toward an action, trying stills, trying another
+        provider) rather than settling immediately.
+      - Its final fallback is a designed graphic card, and it is explicit that
+        a card is preferable to a loosely-related stock clip.
+
+      Score 0 if it suggests just taking the top search result, or treats a
+      vaguely on-theme clip as acceptable.

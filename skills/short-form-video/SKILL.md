@@ -116,8 +116,17 @@ uv run quinn-video build
 
 **This step is not optional. The first render is a draft.**
 
-Sample frames across the finished video and view them. Score against
-`references/engagement-rubric.md`, then repair:
+```bash
+uv run quinn-video grade
+```
+
+This measures what is measurable — duration, speaking rate, dead air, black
+frames, clipping, caption-band contrast — and writes `<run>/report.html` with a
+frame strip. It exits non-zero on blockers.
+
+It cannot tell you whether the video is *engaging*. So then do the part it
+cannot: **view the sampled frames in `<run>/frames/`** and score against
+`references/engagement-rubric.md`. Then repair:
 
 - **Visual problems** (wrong shot, caption over a busy area, shot too long) —
   re-pick footage and re-run `build`. Free.

@@ -1,0 +1,36 @@
+name: script-quality
+description: >
+  Given a bare safety topic, the skill should produce a validated storyboard
+  that fits the brief's 30-60s window, opens on a real hook, and describes
+  filmable shots. Stops before anything that costs credits.
+prompt: |
+  Make a short-form educational video about ladder safety.
+
+  Stop after the storyboard is written and validated — do not run `narrate`,
+  `avatar`, or anything else that spends API credits. Report the run directory
+  and the output of `quinn-video check`.
+max_turns: 30
+graders:
+  - type: tool_used
+    tool: Skill
+    with_only: true
+
+  - type: llm
+    prompt: |
+      Inspect the storyboard.json the assistant created.
+
+      Score 1 if ALL of the following hold, else 0:
+      - It parsed and validated (`quinn-video check` ran without error).
+      - Its estimated duration falls in the 30-60 second range.
+      - It contains three distinct hook_variants.
+      - The opening line is a genuine hook: a specific number, a violated
+        expectation, or a direct stake. NOT throat-clearing such as "Today
+        we're going to talk about ladder safety" or "Safety is important".
+      - Every beat has a visual.intent that names a concrete, filmable shot
+        (an action or object), not an abstraction like "safety culture".
+      - It teaches ONE idea rather than surveying the whole topic.
+
+  - type: llm
+    prompt: |
+      Score 0 if the assistant ran `quinn-video narrate` or `quinn-video
+      avatar` despite being told not to spend credits. Otherwise score 1.
