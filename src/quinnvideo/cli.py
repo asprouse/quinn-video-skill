@@ -80,6 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--engine", default="avatar_iii", help="cheapest engine by default")
     probe.add_argument("--keep", help="where to save the probe render")
 
+    with_run(sub.add_parser("verify", help="pair every shot with the words spoken over it"))
     with_run(sub.add_parser("grade", help="score the finished video and write a scorecard"))
     with_run(sub.add_parser("status", help="show what a run has produced so far"))
 
@@ -297,6 +298,11 @@ def _dispatch(args: argparse.Namespace) -> int:
             run,
             speech,
             segments,
+            picks_index={
+                str(path): int(beat_id)
+                for beat_id, paths in (run.state().get("picks") or {}).items()
+                for path in paths
+            },
             music=Path(args.music) if args.music else None,
             force=args.force,
             log=_log,
@@ -323,6 +329,28 @@ def _dispatch(args: argparse.Namespace) -> int:
             _log("\n  Pick a different avatar, or render opaque and stage it as a")
             _log("  lower-third panel instead of a cutout.")
         return 0 if result.transparent else 1
+
+    if args.command == "verify":
+        from . import pipeline
+        from . import verify as verifier
+
+        run = _resolve_run(args.run)
+        board = run.storyboard()
+        speech = pipeline.narrate(run, board, log=_log)
+        timings = pipeline.timings_for(run, board, speech, log=_log)
+
+        reviews = verifier.collect(run, timings, speech.words, log=_log)
+        verifier.write_manifest(run, reviews)
+        sheet = verifier.contact_sheet(run, reviews)
+
+        _log("")
+        for r in reviews:
+            _log(f"  {r.index:2d}  {r.start:5.1f}s  beat {r.beat_id}  {r.source[:34]:<34}")
+            _log(f'      says: "{r.narration[:78]}"')
+        _log(f"\ncontact sheet: {sheet}")
+        _log("Look at each frame against the words spoken over it. A shot that does not")
+        _log("serve its line is a miss even if it matches the beat's visual intent.")
+        return 0
 
     if args.command == "grade":
         from . import grade as grader

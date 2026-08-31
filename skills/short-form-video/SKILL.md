@@ -123,8 +123,14 @@ uv run quinn-video build
 **This step is not optional. The first render is a draft.**
 
 ```bash
-uv run quinn-video grade
+uv run quinn-video verify   # every shot beside the words spoken over it
+uv run quinn-video grade    # mechanical checks and the scorecard
 ```
+
+**`verify` is the one that catches the failures that matter.** It writes a
+contact sheet pairing each shot with its narration. Look at every pair and ask
+whether the shot serves *that line* — not whether it matches the beat's visual
+intent, which is something you wrote and may itself be wrong.
 
 This measures what is measurable — duration, speaking rate, dead air, black
 frames, clipping, caption-band contrast — and writes `<run>/report.html` with a

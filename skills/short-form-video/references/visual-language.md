@@ -1,5 +1,26 @@
 # Visual language
 
+## Write the intent from the line, not from what is findable
+
+`visual.intent` is what every downstream check judges against — so if the
+intent does not serve the narration, everything passes and the video still
+shows the wrong thing.
+
+The failure to avoid, from this project: a beat whose line was *"you don't
+have to be high up to **die falling off** a ladder"* carried the intent *"a
+worker standing on a low stepladder."* It captured "not high up" and dropped
+the death. The finished video contained no danger anywhere, and nothing
+flagged it, because every shot matched its intent exactly.
+
+That intent was phrased to be **findable in a stock library**. Once footage can
+be generated, findability is no longer the constraint — so write the intent as
+what the line *needs the viewer to see*, then let sourcing worry about how.
+Ask of every beat: if the narration names a consequence, is the consequence on
+screen?
+
+Then check the result with `quinn-video verify`, which pairs every shot with
+the words actually spoken over it. Judge the pairing, not the intent.
+
 ## Judging b-roll
 
 The brief's hardest requirement is negative: *"All imagery and background
@@ -72,6 +93,17 @@ With `FAL_KEY` set, a beat can generate its own footage:
 Stills, not clips — about $0.05 each. They cost a fraction of generated video,
 the pipeline already gives stills a Ken Burns move, and they avoid the morphing
 hands and warping rails video models still produce.
+
+**Generate poses and scenes, not events.** The model draws a *state*, not a
+happening. "A worker overreaching, the stepladder tilting onto two legs" works
+— it is a pose. "A ladder skidding out from under him" does not — it is an
+event, and comes back as an ordinary photo of someone climbing.
+
+**Describe the hazard, not the injury.** Safety filters block prompts about
+people falling or being hurt, and fal returns a blank black frame when they
+fire. "Overreaching", "off balance", "tilting onto two legs" all pass and show
+the same danger. The generator detects the blank frame, retries, and says so
+rather than letting it ship.
 
 **Generate scenes. Draw procedures.** This is the line that matters, and it was
 found the hard way. An ordinary scene — someone climbing a ladder, someone

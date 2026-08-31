@@ -243,16 +243,23 @@ def plan_segments(
     return segments
 
 
+def _segment_beats(segments: list[Segment], picks_index: dict[str, int]) -> list[int]:
+    """Which beat each shot came from, looked up by its source file."""
+    return [picks_index.get(str(seg.source), 0) for seg in segments]
+
+
 def build(
     run: Run,
     speech: Speech,
     segments: list[Segment],
     *,
+    picks_index: dict[str, int] | None = None,
     music: Path | None = None,
     force: bool = False,
     log: Log = _noop,
 ) -> Path:
     """Composite everything into the finished video."""
+    picks_index = picks_index or {}
     comp = Composition(
         segments=segments,
         narration=run.audio,
@@ -263,6 +270,20 @@ def build(
     )
 
     log(compose.describe(comp))
+
+    # The cut list is what `verify` reads back to pair each shot with the
+    # words spoken over it. It is not recoverable from the finished mp4.
+    run.update_state(
+        segments=[
+            {
+                "start": round(seg.start, 3),
+                "duration": round(seg.duration, 3),
+                "source": str(seg.source),
+                "beat": beat_id,
+            }
+            for seg, beat_id in zip(segments, _segment_beats(segments, picks_index), strict=True)
+        ]
+    )
 
     if not run.has(run.base) or force:
         log("compose: building b-roll base")

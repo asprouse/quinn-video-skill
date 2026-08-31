@@ -100,6 +100,46 @@ class GenerationError(RuntimeError):
     pass
 
 
+class PromptBlocked(GenerationError):
+    """The provider's safety filter refused the prompt."""
+
+
+def _reject_if_bad(data: bytes, model: str, width: int, height: int) -> None:
+    """Refuse anything that would degrade or blank the shot."""
+    import statistics
+
+    from PIL import Image
+
+    got_w, got_h = _dimensions(data)
+
+    import io
+
+    with Image.open(io.BytesIO(data)) as image:
+        pixels = list(image.convert("L").getdata())
+    mean = statistics.fmean(pixels)
+    spread = statistics.pstdev(pixels)
+
+    # A uniform black frame is what fal returns when the safety checker blocks
+    # a prompt. It arrives at an off-size too, so check this first and give
+    # the real reason rather than a confusing complaint about resolution.
+    if mean < 2 and spread < 2:
+        raise PromptBlocked(
+            f"{model} returned a blank frame — the prompt was almost certainly refused "
+            "by the safety filter. Describe the hazard rather than the injury: "
+            '"overreaching", "off balance", "the ladder tipping" rather than falling or harm.'
+        )
+
+    if got_w < width or got_h < height:
+        raise GenerationError(
+            f"{model} returned {got_w}x{got_h}, smaller than the {width}x{height} canvas. "
+            "It would be upscaled. Use a model that honours the requested size."
+        )
+
+    defect = _borders_are_flat(data)
+    if defect:
+        raise GenerationError(f"{model}: {defect}. Re-run to draw a different frame.")
+
+
 def _dimensions(data: bytes) -> tuple[int, int]:
     import io
 
@@ -138,10 +178,29 @@ def generate_still(
     width: int = 1080,
     height: int = 1920,
     timeout: float = 240.0,
+    attempts: int = 3,
 ) -> Generated:
-    """Generate one image and save it."""
+    """Generate one image and save it.
+
+    Retries on a rejected frame: the safety filter and the occasional
+    letterboxed composition are both non-deterministic, and a second draw of
+    the same prompt usually comes back clean.
+    """
+    last: GenerationError | None = None
+    for _ in range(attempts):
+        try:
+            return _attempt(prompt, dest, model, width, height, timeout)
+        except GenerationError as exc:
+            last = exc
+    raise last if last else GenerationError("generation failed")
+
+
+def _attempt(
+    prompt: str, dest: Path, model: str, width: int, height: int, timeout: float
+) -> Generated:
     key = require("FAL_KEY", "generated b-roll")
     started = time.monotonic()
+
 
     size: dict = (
         {"aspect_ratio": "9:16"}
@@ -162,23 +221,16 @@ def generate_still(
     if not images or not images[0].get("url"):
         raise GenerationError(f"fal {model} returned no image: {str(payload)[:300]}")
 
-    dest.parent.mkdir(parents=True, exist_ok=True)
     data = httpx.get(images[0]["url"], timeout=timeout).content
+
+    # Validate *before* writing. An earlier version wrote first and raised
+    # after, which left the rejected frame on disk where the next run picked
+    # it up as a valid cache hit -- so a blocked, entirely black placeholder
+    # shipped into the video.
+    _reject_if_bad(data, model, width, height)
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(data)
-
-    # Anything smaller than the canvas gets upscaled by the compositor, which
-    # is exactly the softness this module exists to avoid. Say so rather than
-    # letting it pass silently.
-    got_w, got_h = _dimensions(data)
-    if got_w < width or got_h < height:
-        raise GenerationError(
-            f"{model} returned {got_w}x{got_h}, smaller than the {width}x{height} canvas. "
-            "It would be upscaled. Use a model that honours the requested size."
-        )
-
-    defect = _borders_are_flat(data)
-    if defect:
-        raise GenerationError(f"{model}: {defect}. Re-run to draw a different frame.")
 
     return Generated(
         path=dest,
