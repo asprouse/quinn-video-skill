@@ -265,9 +265,7 @@ def list_avatars(search: str | None = None, *, private_only: bool = False, limit
     def usable(a: dict) -> bool:
         if a.get("status") not in (None, "completed"):
             return False
-        if search and search.lower() not in (a.get("name") or "").lower():
-            return False
-        return True
+        return not (search and search.lower() not in (a.get("name") or "").lower())
 
     def rank(a: dict) -> tuple:
         engines = a.get("supported_api_engines") or []
