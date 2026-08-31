@@ -47,6 +47,14 @@ class CaptionStyle:
     pop_scale: float = 1.14
     pop_duration: float = 0.13
 
+    # How a phrase builds. "in-place" lays the whole phrase out once and
+    # reveals words at their final positions, so the line grows left to
+    # right. "recenter" re-centres the visible words on every beat, which
+    # keeps a short line optically centred but drags the words already on
+    # screen leftwards -- and the eye reads that drift as the text arriving
+    # right to left, which is the wrong way round for English.
+    reveal: str = "in-place"
+
 
 @dataclass
 class Token:
@@ -109,15 +117,19 @@ class Renderer:
     # --- layout ----------------------------------------------------------
 
     def layout(self, group: Group) -> None:
-        """Compute a centred layout for every prefix of the phrase.
-
-        Words appear one at a time, so the line is a different width on every
-        beat. Re-centring each time keeps the phrase optically anchored to the
-        middle of the frame instead of drifting in from the left, which is
-        what happens if you reserve space for words nobody has said yet.
-        """
+        """Work out where each word sits for every stage of the reveal."""
         for token in group.tokens:
             token.width = self.measure(token.text)
+
+        if self.style.reveal == "in-place":
+            # One layout for the finished phrase; each prefix is simply the
+            # front of it. Words therefore appear where they will stay, and
+            # the line builds left to right the way it is read.
+            positions = self._layout_prefix(group.tokens)
+            for count in range(1, len(group.tokens) + 1):
+                group.layouts[count] = positions[:count]
+            return
+
         for count in range(1, len(group.tokens) + 1):
             group.layouts[count] = self._layout_prefix(group.tokens[:count])
 

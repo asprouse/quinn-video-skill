@@ -48,8 +48,27 @@ def test_every_word_appears_exactly_once():
     assert [t.text for g in groups for t in g.tokens] == ["a", "b.", "c", "d"]
 
 
-def test_visible_line_stays_centred_as_the_phrase_grows():
-    """A lone first word must not sit where a four-word phrase would start."""
+def test_words_appear_in_place_so_the_line_grows_left_to_right():
+    """Words already on screen must not move when a new one arrives.
+
+    Re-centring the visible words on every beat drags the earlier ones
+    leftwards, and the eye reads that drift as text arriving right to left.
+    """
+    renderer = Renderer(CaptionStyle())
+    words = _words([("only", 0.0, 0.3), ("six", 0.3, 0.6), ("feet", 0.6, 0.9)])
+    group = group_words(words)[0]
+    renderer.layout(group)
+
+    first_word = [group.layouts[n][0] for n in (1, 2, 3)]
+    assert first_word[0] == first_word[1] == first_word[2]
+
+    # Each new word lands to the right of the one before it.
+    final = group.layouts[3]
+    assert final[0][0] < final[1][0] < final[2][0]
+
+
+def test_the_finished_phrase_is_centred():
+    """Growing left to right must still leave the completed line balanced."""
     renderer = Renderer(CaptionStyle())
     words = _words([("only", 0.0, 0.3), ("six", 0.3, 0.6), ("feet", 0.6, 0.9)])
     group = group_words(words)[0]
@@ -57,12 +76,10 @@ def test_visible_line_stays_centred_as_the_phrase_grows():
 
     from quinnvideo.config import WIDTH
 
-    for count in (1, 2, 3):
-        positions = group.layouts[count]
-        left = positions[0][0]
-        last = group.tokens[count - 1]
-        right = positions[count - 1][0] + last.width
-        assert (left + right) / 2 == pytest.approx(WIDTH / 2, abs=1.0)
+    positions = group.layouts[3]
+    left = positions[0][0]
+    right = positions[2][0] + group.tokens[2].width
+    assert (left + right) / 2 == pytest.approx(WIDTH / 2, abs=1.0)
 
 
 def test_active_word_tracks_the_clock():

@@ -75,8 +75,11 @@ they do, so you can judge them:
 - Phrases of up to 4 words, broken on pauses over 320ms and on sentence ends.
 - Words appear one at a time; the spoken word is accented in high-visibility
   yellow (`#FFD600`, borrowed from safety vests so the accent feels native).
-- The visible line **re-centres** as it grows, so a phrase never drifts in from
-  the left.
+- The phrase is laid out once and words appear **in place**, so the line builds
+  left to right the way it is read. Re-centring the visible words on every beat
+  keeps a short line optically centred, but it drags the words already on
+  screen leftwards — and the eye reads that drift as the text arriving right to
+  left, which is backwards for English.
 - Heavy stroke plus drop shadow, because the background is unpredictable.
 - Positioned clear of platform UI: bottom 340px, top 120px, right 200px.
 
