@@ -70,6 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
     build = with_run(sub.add_parser("build", help="composite the finished video"))
     build.add_argument("--music", help="optional music bed")
 
+    with_run(sub.add_parser("grade", help="score the finished video and write a scorecard"))
     with_run(sub.add_parser("status", help="show what a run has produced so far"))
 
     return parser
@@ -213,6 +214,25 @@ def _dispatch(args: argparse.Namespace) -> int:
             log=_log,
         )
         return 0
+
+    if args.command == "grade":
+        from . import grade as grader
+
+        run = _resolve_run(args.run)
+        report = grader.grade(run, log=_log)
+        path = grader.write_report(run, report)
+
+        _log(f"\n{report.duration:.1f}s  {report.width}x{report.height}  "
+             f"{report.words} words  {report.wpm:.0f} wpm")
+        for finding in sorted(report.findings, key=lambda f: (f.severity != "blocker", f.at or 0)):
+            at = "     " if finding.at is None else f"{finding.at:5.1f}"
+            _log(f"  [{finding.severity:7}] {at}  {finding.criterion}: {finding.detail}")
+        if not report.findings:
+            _log("  nothing flagged mechanically")
+        _log(f"\nscorecard: {path}")
+        _log("Now view the frames yourself and grade against the rubric — "
+             "the mechanical pass cannot tell you whether it is engaging.")
+        return 1 if report.blockers else 0
 
     if args.command == "status":
         run = _resolve_run(args.run)
