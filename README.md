@@ -38,7 +38,7 @@ topic
  ├─ pre-grade   hooks and pacing scored on text alone (free)
  ├─ voice       HeyGen TTS → audio + word-level timestamps
  ├─ avatar      alpha-WebM presenter, lip-synced to that exact audio
- ├─ b-roll      Pexels search → Claude judges thumbnails → fallback ladder
+ ├─ b-roll      Pexels search → Claude judges thumbnails → generate → card
  ├─ compose     ffmpeg: b-roll base → avatar overlay → captions → ducked music
  └─ grade       frame sampling → report.html → targeted repair
 ```
@@ -82,6 +82,8 @@ money never re-run because something downstream broke.
 - `uv`
 - A HeyGen account (a matting-trained avatar, for transparent output) and a
   free Pexels API key
+- Optionally `FAL_KEY`, for generated b-roll (~$0.05 a shot) where stock has
+  nothing honest to offer
 
 ## Development
 

@@ -202,39 +202,55 @@ def _dispatch(args: argparse.Namespace) -> int:
         beat_timings = pipeline.timings_for(run, board, speech, log=_log)
         spans = {t.beat.id: (t.start, t.duration) for t in beat_timings}
 
-        # A beat may carry one pick or several; normalise to a list either way.
-        wanted: dict[int, list[dict]] = {}
+        # Resolve each beat's picks in the order they were written. Grouping
+        # by source type instead would silently reorder the cut, putting every
+        # generated shot after every stock one regardless of intent.
+        resolved: dict[int, list[Path]] = {}
         cards: list[int] = []
-        for key, value in picks.items():
-            entries = value if isinstance(value, list) else [value]
-            real = [e for e in entries if not e.get("card")]
-            if any(e.get("card") for e in entries):
-                cards.append(int(key))
-            if real:
-                wanted[int(key)] = real
+        ai_beats: set[int] = set()
 
-        resolved = broll.fetch_picks(run, wanted, log=_log) if wanted else {}
-        for beat_id in cards:
-            resolved.setdefault(beat_id, []).append(
-                broll.fallback_card(
-                    run,
-                    by_id[beat_id],
-                    duration=spans.get(beat_id, (0.0, 4.0))[1],
-                    start=spans.get(beat_id, (0.0, 4.0))[0],
-                    words=[
-                        w
-                        for w in speech.words
-                        if spans.get(beat_id, (0.0, 4.0))[0]
-                        <= w.start
-                        < sum(spans.get(beat_id, (0.0, 4.0)))
-                    ],
-                    log=_log,
-                )
-            )
+        for key, value in picks.items():
+            beat_id = int(key)
+            entries = value if isinstance(value, list) else [value]
+
+            for entry in entries:
+                if entry.get("card"):
+                    cards.append(beat_id)
+                    resolved.setdefault(beat_id, []).append(
+                        broll.fallback_card(
+                            run,
+                            by_id[beat_id],
+                            duration=spans.get(beat_id, (0.0, 4.0))[1],
+                            start=spans.get(beat_id, (0.0, 4.0))[0],
+                            words=[
+                                w
+                                for w in speech.words
+                                if spans.get(beat_id, (0.0, 4.0))[0]
+                                <= w.start
+                                < sum(spans.get(beat_id, (0.0, 4.0)))
+                            ],
+                            log=_log,
+                        )
+                    )
+                elif entry.get("generate"):
+                    ai_beats.add(beat_id)
+                    prompt = entry["generate"]
+                    resolved.setdefault(beat_id, []).append(
+                        broll.generate_shot(
+                            run,
+                            by_id[beat_id],
+                            prompt if isinstance(prompt, str) else None,
+                            log=_log,
+                        )
+                    )
+                else:
+                    fetched = broll.fetch_picks(run, {beat_id: [entry]}, log=_log)
+                    resolved.setdefault(beat_id, []).extend(fetched.get(beat_id, []))
 
         run.update_state(
             picks={str(k): [str(p) for p in v] for k, v in sorted(resolved.items())},
             generated=sorted(cards),
+            ai_generated=sorted(ai_beats),
         )
         shots = sum(len(v) for v in resolved.values())
         _log(f"\n{len(resolved)} of {len(board.beats)} beats have footage ({shots} clips).")

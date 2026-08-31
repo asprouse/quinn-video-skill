@@ -112,11 +112,12 @@ def check_keys(keys: Keys) -> Iterable[Check]:
         "set" if keys.pixabay else "unset — no secondary b-roll source",
         fatal=False,
     )
-    generative = keys.fal or keys.replicate
     yield Check(
         "generative b-roll",
-        bool(generative),
-        "enabled" if generative else "unset — falls back to designed graphic cards",
+        bool(keys.fal),
+        "fal.ai enabled — ~$0.05 per generated still"
+        if keys.fal
+        else "unset — falls back to designed graphic cards",
         fatal=False,
     )
 

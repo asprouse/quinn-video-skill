@@ -38,7 +38,8 @@ When nothing scores ≥2, walk this in order. Do not stop early and do not settl
 2. **Try the other medium.** A strong photograph with a Ken Burns move beats a
    weak video. `broll` already searches stills when video comes up short.
 3. **Try the secondary provider** (Pixabay, if `PIXABAY_API_KEY` is set).
-4. **Generative clip** — only if `FAL_KEY` or `REPLICATE_API_TOKEN` is set.
+4. **Generate the shot** — `{"generate": "<prompt>"}` in picks.json, if `FAL_KEY`
+   is set. See below; this is often better than step 1, not a last resort.
 5. **Designed card** — `{"card": true}` in picks.json.
 
 The card is a real answer, not a failure. A typographic frame reads as an
@@ -58,6 +59,39 @@ Two authored fields reach the screen beyond the footage itself:
 
 Emphasis matches **spoken** words, so spell numerals the way the voice says
 them. `check` warns about terms it cannot find.
+
+## Generated b-roll
+
+With `FAL_KEY` set, a beat can generate its own footage:
+
+```json
+"5": [{"generate": "A worker in a hi-vis vest crouches to set the feet of an
+        aluminium extension ladder on concrete."}]
+```
+
+Stills, not clips — about $0.05 each. They cost a fraction of generated video,
+the pipeline already gives stills a Ken Burns move, and they avoid the morphing
+hands and warping rails video models still produce.
+
+**Generate scenes. Draw procedures.** This is the line that matters, and it was
+found the hard way. An ordinary scene — someone climbing a ladder, someone
+setting its feet down — comes back better than anything in the stock libraries.
+A specific physical technique does not: asked for a worker holding the
+toes-to-palms angle check, the model returned a man gesturing at a stepladder,
+and a *more* prescriptive prompt made it drop the person entirely. Anything
+where the exact pose or geometry is the teaching point belongs in `diagrams`.
+
+**Check generated footage harder than stock, not more leniently.** A generated
+clip showing bad practice is worse than an off-topic one, because it looks
+authoritative. The first attempt at "worker climbing a ladder" came back with
+the ladder nearly flat against the wall — an unsafe setup, on screen, while the
+narration said to set the angle. Naming the geometry in the prompt ("leaning at
+a clearly slanted angle, its base set well out from the wall") fixed it. Judge
+every generated shot against the *claim the narration is making*, not just its
+subject.
+
+Prompts are saved next to each image as a `.txt`, so a reviewer can see what was
+asked for and judge the result against it.
 
 ## Generated diagrams
 

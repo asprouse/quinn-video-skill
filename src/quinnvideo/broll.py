@@ -161,6 +161,38 @@ def fetch_picks(
     return resolved
 
 
+def generate_shot(
+    run: Run, beat: Beat, prompt: str | None = None, *, log: Log = _noop
+) -> Path:
+    """Generate this beat's b-roll rather than sourcing it.
+
+    Reached when stock has nothing honest, or chosen outright for a beat whose
+    scene is easy to describe and hard to find. Not for procedures -- see the
+    note in `generate`.
+    """
+    import hashlib
+
+    from .generate import build_prompt, generate_still
+
+    text = prompt or build_prompt(beat.visual.intent)
+
+    # Keyed on the prompt, not on position. A beat may carry several generated
+    # shots, and indexing by position means editing a prompt silently returns
+    # the image the old one produced.
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
+    dest = run.broll_dir / f"generated-beat-{beat.id}-{digest}.jpg"
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+    log(f"beat {beat.id}: generating — {text[:70]}...")
+    result = generate_still(text, dest)
+    log(f"beat {beat.id}: generated in {result.seconds:.1f}s (${result.cost:.3f})")
+
+    # Kept beside the image so a reviewer can see what was asked for, and
+    # judge the result against it rather than against the narration alone.
+    dest.with_suffix(".txt").write_text(text, encoding="utf-8")
+    return dest
+
+
 def fallback_card(
     run: Run,
     beat: Beat,

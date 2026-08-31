@@ -29,6 +29,8 @@ Sample frames across the video and **look at them**. Then:
 | 11 | **Dead air** | No silence over 0.6s that is not doing dramatic work | script (costs credits) |
 | 12 | **Avatar staging** | Presenter never covers the subject of the shot or the captions | free |
 | 13 | **On-topic footage** | Zero clips that are merely "adjacent" to the subject | footage (free) |
+| 14 | **No repeated shots** | Every shot is a distinct clip; `grade` checks this | footage (free) |
+| 15 | **Generated content is correct** | Any generated shot depicts the practice the narration describes, correctly and safely | re-prompt (~$0.05) |
 
 ## Repair order
 
