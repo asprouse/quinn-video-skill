@@ -51,9 +51,7 @@ class OverlayCue:
         return 1.0
 
 
-def group_words(
-    words: list[Word], emphasised: Callable[[Word], bool] | None = None
-) -> list[Group]:
+def group_words(words: list[Word], emphasised: Callable[[Word], bool] | None = None) -> list[Group]:
     """Chunk a word stream into phrases that appear as a unit.
 
     Breaks follow the speech, not a fixed word count: a pause, a sentence

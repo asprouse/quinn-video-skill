@@ -229,7 +229,7 @@ class HeyGen:
         return self._request("GET", "/v3/users/me").get("data", {})
 
     def balance(self) -> float | None:
-        wallet = (self.account().get("wallet") or {})
+        wallet = self.account().get("wallet") or {}
         value = wallet.get("remaining_balance")
         return float(value) if value is not None else None
 

@@ -99,8 +99,19 @@ def _has_alpha(video: Path) -> tuple[bool, str]:
 
     frame = video.parent / "probe-frame.png"
     ff.run(
-        ["-c:v", "libvpx-vp9", "-i", str(video), "-frames:v", "1", "-ss", "1",
-         "-pix_fmt", "rgba", str(frame)]
+        [
+            "-c:v",
+            "libvpx-vp9",
+            "-i",
+            str(video),
+            "-frames:v",
+            "1",
+            "-ss",
+            "1",
+            "-pix_fmt",
+            "rgba",
+            str(frame),
+        ]
     )
 
     image = Image.open(frame).convert("RGBA")

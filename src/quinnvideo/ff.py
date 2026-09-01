@@ -40,8 +40,10 @@ def probe(path: Path) -> dict[str, Any]:
     result = subprocess.run(
         [
             binary("ffprobe"),
-            "-v", "error",
-            "-print_format", "json",
+            "-v",
+            "error",
+            "-print_format",
+            "json",
             "-show_format",
             "-show_streams",
             str(path),
@@ -86,8 +88,21 @@ def alpha_bbox(video: Path, samples: int = 5) -> tuple[int, int, int, int]:
     for index in range(samples):
         at = duration * (index + 0.5) / samples
         frame = video.parent / f".bbox-{index}.png"
-        run(["-c:v", "libvpx-vp9", "-ss", f"{at:.3f}", "-i", str(video),
-             "-frames:v", "1", "-pix_fmt", "rgba", str(frame)])
+        run(
+            [
+                "-c:v",
+                "libvpx-vp9",
+                "-ss",
+                f"{at:.3f}",
+                "-i",
+                str(video),
+                "-frames:v",
+                "1",
+                "-pix_fmt",
+                "rgba",
+                str(frame),
+            ]
+        )
         with Image.open(frame) as image:
             box = image.convert("RGBA").getchannel("A").getbbox()
         frame.unlink(missing_ok=True)
@@ -124,11 +139,30 @@ class VideoWriter:
         self.dest.parent.mkdir(parents=True, exist_ok=True)
         self._process = subprocess.Popen(
             [
-                binary(), "-hide_banner", "-loglevel", "error", "-y",
-                "-f", "rawvideo", "-pix_fmt", "rgb24",
-                "-s", f"{WIDTH}x{HEIGHT}", "-r", str(self.fps), "-i", "-",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-                "-pix_fmt", "yuv420p", str(self.dest),
+                binary(),
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "-s",
+                f"{WIDTH}x{HEIGHT}",
+                "-r",
+                str(self.fps),
+                "-i",
+                "-",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                str(self.dest),
             ],
             stdin=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -173,14 +207,25 @@ class AlphaWriter:
         self.dest.parent.mkdir(parents=True, exist_ok=True)
         self._process = subprocess.Popen(
             [
-                binary(), "-hide_banner", "-loglevel", "error", "-y",
-                "-f", "rawvideo",
-                "-pix_fmt", "rgba",
-                "-s", f"{WIDTH}x{HEIGHT}",
-                "-r", str(self.fps),
-                "-i", "-",
-                "-c:v", "qtrle",
-                "-pix_fmt", "argb",
+                binary(),
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgba",
+                "-s",
+                f"{WIDTH}x{HEIGHT}",
+                "-r",
+                str(self.fps),
+                "-i",
+                "-",
+                "-c:v",
+                "qtrle",
+                "-pix_fmt",
+                "argb",
                 str(self.dest),
             ],
             stdin=subprocess.PIPE,

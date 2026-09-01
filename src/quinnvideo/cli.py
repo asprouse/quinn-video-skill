@@ -80,8 +80,11 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--engine", default="avatar_iii", help="cheapest engine by default")
     probe.add_argument("--keep", help="where to save the probe render")
 
-    cands = with_run(sub.add_parser(
-        "candidates", help="draw several options per generated shot, to choose between"))
+    cands = with_run(
+        sub.add_parser(
+            "candidates", help="draw several options per generated shot, to choose between"
+        )
+    )
     cands.add_argument("--count", type=int, default=3)
     cands.add_argument("--beat", type=int, help="only this beat")
     cands.add_argument("--model", help="override the image model")
@@ -260,7 +263,8 @@ def _dispatch(args: argparse.Namespace) -> int:
                             duration=window[1],
                             start=window[0],
                             words=[
-                                w for w in speech.words
+                                w
+                                for w in speech.words
                                 if window[0] <= w.start < window[0] + window[1]
                             ],
                             log=_log,
@@ -356,9 +360,12 @@ def _dispatch(args: argparse.Namespace) -> int:
                     continue
                 prompt = entry["generate"]
                 paths = broll.generate_candidates(
-                    run, by_id[beat_id],
+                    run,
+                    by_id[beat_id],
                     prompt if isinstance(prompt, str) else None,
-                    count=args.count, model=args.model, log=_log,
+                    count=args.count,
+                    model=args.model,
+                    log=_log,
                 )
                 made.append((beat_id, paths))
 
@@ -368,7 +375,7 @@ def _dispatch(args: argparse.Namespace) -> int:
                 _log(f"  beat {beat_id}  {path.name}")
         _log("\nLook at every candidate. Reject any where the physical relationship is")
         _log("wrong — a ladder not touching what it leans on, a limb that does not bend")
-        _log("the way an arm bends. Then set \"variant\": \"b\" on the pick and re-fetch.")
+        _log('the way an arm bends. Then set "variant": "b" on the pick and re-fetch.')
         return 0
 
     if args.command == "verify":
@@ -400,16 +407,20 @@ def _dispatch(args: argparse.Namespace) -> int:
         report = grader.grade(run, log=_log)
         path = grader.write_report(run, report)
 
-        _log(f"\n{report.duration:.1f}s  {report.width}x{report.height}  "
-             f"{report.words} words  {report.wpm:.0f} wpm")
+        _log(
+            f"\n{report.duration:.1f}s  {report.width}x{report.height}  "
+            f"{report.words} words  {report.wpm:.0f} wpm"
+        )
         for finding in sorted(report.findings, key=lambda f: (f.severity != "blocker", f.at or 0)):
             at = "     " if finding.at is None else f"{finding.at:5.1f}"
             _log(f"  [{finding.severity:7}] {at}  {finding.criterion}: {finding.detail}")
         if not report.findings:
             _log("  nothing flagged mechanically")
         _log(f"\nscorecard: {path}")
-        _log("Now view the frames yourself and grade against the rubric — "
-             "the mechanical pass cannot tell you whether it is engaging.")
+        _log(
+            "Now view the frames yourself and grade against the rubric — "
+            "the mechanical pass cannot tell you whether it is engaging."
+        )
         return 1 if report.blockers else 0
 
     if args.command == "status":

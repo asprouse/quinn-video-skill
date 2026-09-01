@@ -19,8 +19,7 @@ def _board(*narrations: str) -> Storyboard:
     return Storyboard(
         topic="ladder safety",
         beats=[
-            Beat(id=i + 1, narration=text, visual=_visual())
-            for i, text in enumerate(narrations)
+            Beat(id=i + 1, narration=text, visual=_visual()) for i, text in enumerate(narrations)
         ],
     )
 

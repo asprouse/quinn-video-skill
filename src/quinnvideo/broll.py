@@ -140,9 +140,7 @@ def fetch_picks(
     # Keyed globally, not per beat. The same clip often surfaces under several
     # beats' searches, and a reviewer who spots the right shot while reviewing
     # one beat should be able to use it on any of them.
-    lookup = {
-        (c["provider"], c["ident"]): c for b in manifest["beats"] for c in b["candidates"]
-    }
+    lookup = {(c["provider"], c["ident"]): c for b in manifest["beats"] for c in b["candidates"]}
 
     resolved: dict[int, list[Path]] = {}
     with Stock() as stock:
@@ -155,9 +153,7 @@ def fetch_picks(
                 candidate = Candidate(
                     **{k: v for k, v in entry.items() if k not in ("thumbnail", "vertical")}
                 )
-                resolved.setdefault(int(beat_id), []).append(
-                    stock.fetch(candidate, run.broll_dir)
-                )
+                resolved.setdefault(int(beat_id), []).append(stock.fetch(candidate, run.broll_dir))
                 log(f"beat {beat_id}: {candidate.filename()}")
 
     return resolved
@@ -184,15 +180,26 @@ def generate_candidates(
     directory.mkdir(parents=True, exist_ok=True)
 
     log(f"beat {beat.id}: drawing {count} candidates — {text[:60]}...")
-    paths = draw(text, directory, f"beat-{beat.id}-{digest}", count=count,
-                 model=model or DEFAULT_MODEL, log=log)
+    paths = draw(
+        text,
+        directory,
+        f"beat-{beat.id}-{digest}",
+        count=count,
+        model=model or DEFAULT_MODEL,
+        log=log,
+    )
     (directory / f"beat-{beat.id}-{digest}.txt").write_text(text, encoding="utf-8")
     return paths
 
 
 def generate_shot(
-    run: Run, beat: Beat, prompt: str | None = None, *, variant: str | None = None,
-    model: str | None = None, log: Log = _noop
+    run: Run,
+    beat: Beat,
+    prompt: str | None = None,
+    *,
+    variant: str | None = None,
+    model: str | None = None,
+    log: Log = _noop,
 ) -> Path:
     """Generate this beat's b-roll rather than sourcing it.
 
@@ -269,7 +276,7 @@ def annotate_shot(
             "new image and update picks.json."
         )
     if not expected:
-        log(f"beat {beat.id}: anchors are not pinned — add \"for_image\": \"{stamp}\"")
+        log(f'beat {beat.id}: anchors are not pinned — add "for_image": "{stamp}"')
 
     dest = run.broll_dir / f"annotated-beat-{beat.id}-{stamp}.mp4"
     if dest.exists() and dest.stat().st_size > 0:
@@ -306,9 +313,11 @@ def fallback_card(
         dest = run.broll_dir / f"diagram-beat-{beat.id}.mp4"
         if not (dest.exists() and dest.stat().st_size > 0):
             cues = _diagram_cues(beat, words or [], start, duration)
-            log(f"beat {beat.id}: drawing the {beat.overlay.ratio[0]}:"
+            log(
+                f"beat {beat.id}: drawing the {beat.overlay.ratio[0]}:"
                 f"{beat.overlay.ratio[1]} diagram ({duration:.1f}s), "
-                + ", ".join(f"{k} @{v:.2f}s" for k, v in sorted(cues.items())))
+                + ", ".join(f"{k} @{v:.2f}s" for k, v in sorted(cues.items()))
+            )
             render_ladder_angle(dest, duration, ratio=beat.overlay.ratio, cues=cues)
         return dest
 
@@ -334,7 +343,12 @@ def _diagram_cues(beat: Beat, words: list, start: float, duration: float) -> dic
 
     spoken = [(normalise(w.word), w.start - start) for w in words]
     number_words = {
-        1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+        1: "one",
+        2: "two",
+        3: "three",
+        4: "four",
+        5: "five",
+        6: "six",
     }
     up, out = beat.overlay.ratio if beat.overlay else (4, 1)
 

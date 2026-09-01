@@ -60,13 +60,22 @@ def collect(
         at = start + duration / 2
         frame = directory / f"shot-{index:02d}.jpg"
         ff.run(
-            ["-ss", f"{at:.3f}", "-i", str(run.final), "-frames:v", "1",
-             "-vf", "scale=360:640", "-q:v", "4", str(frame)]
+            [
+                "-ss",
+                f"{at:.3f}",
+                "-i",
+                str(run.final),
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale=360:640",
+                "-q:v",
+                "4",
+                str(frame),
+            ]
         )
 
-        spoken = " ".join(
-            w.word for w in words if start <= w.start < start + duration
-        ).strip()
+        spoken = " ".join(w.word for w in words if start <= w.start < start + duration).strip()
         beat = by_beat.get(int(seg["beat"]))
 
         reviews.append(
@@ -132,11 +141,14 @@ def contact_sheet(run: Run, reviews: list[ShotReview], dest: Path | None = None)
         if r.frame.exists():
             with Image.open(r.frame) as frame:
                 sheet.paste(frame.convert("RGB").resize((cw, ch)), (x, y))
-        draw.text((x + 10, y + ch + 8), f"{r.index}  {r.start:.1f}s  beat {r.beat_id}",
-                  font=label, fill=(255, 214, 0))
+        draw.text(
+            (x + 10, y + ch + 8),
+            f"{r.index}  {r.start:.1f}s  beat {r.beat_id}",
+            font=label,
+            fill=(255, 214, 0),
+        )
         for line_no, line in enumerate(_wrap(body, f"“{r.narration}”", cw - 24)[:4]):
-            draw.text((x + 10, y + ch + 34 + line_no * 24), line, font=body,
-                      fill=(232, 234, 240))
+            draw.text((x + 10, y + ch + 34 + line_no * 24), line, font=body, fill=(232, 234, 240))
 
     sheet.save(dest, quality=86)
     return dest

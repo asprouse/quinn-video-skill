@@ -76,8 +76,11 @@ def test_a_generated_diagram_is_named_in_the_manifest():
     board = Storyboard(
         topic="ladder safety",
         beats=[
-            _beat(1, "First line here.",
-                  overlay=Overlay(kind="ladder-angle", text="4 : 1", ratio=(4, 1))),
+            _beat(
+                1,
+                "First line here.",
+                overlay=Overlay(kind="ladder-angle", text="4 : 1", ratio=(4, 1)),
+            ),
             _beat(2, "Second line here."),
         ],
     )

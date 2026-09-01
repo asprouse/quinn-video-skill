@@ -160,9 +160,7 @@ def render_overlay(
         """Scoped to the beat that authored it, so a common word like "one"
         is not accented everywhere it happens to occur."""
         token = normalise(word.word)
-        return any(
-            start <= word.start < end and token in terms for start, end, terms in emphasis
-        )
+        return any(start <= word.start < end and token in terms for start, end, terms in emphasis)
 
     log(
         "overlay: captions"
@@ -298,8 +296,11 @@ def build(
     run.update_state(
         staging=[
             {
-                "start": st.start, "end": st.end, "scale": st.scale,
-                "anchor": st.anchor, "rect": compose.stage_rect(st, comp.avatar),
+                "start": st.start,
+                "end": st.end,
+                "scale": st.scale,
+                "anchor": st.anchor,
+                "rect": compose.stage_rect(st, comp.avatar),
             }
             for st in (comp.stages or compose.default_stages(comp.duration))
         ]
@@ -320,9 +321,7 @@ def build(
 # --- convenience ---------------------------------------------------------
 
 
-def timings_for(
-    board: Storyboard, speech: Speech, *, log: Log = _noop
-) -> list[BeatTiming]:
+def timings_for(board: Storyboard, speech: Speech, *, log: Log = _noop) -> list[BeatTiming]:
     timings = align(board, speech.words)
     estimated = [t for t in timings if not t.aligned]
     if estimated:

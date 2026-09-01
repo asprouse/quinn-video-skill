@@ -90,9 +90,7 @@ class Storyboard(BaseModel):
     @model_validator(mode="after")
     def _check_length(self) -> Storyboard:
         if not (MIN_SECONDS <= self.target_seconds <= MAX_SECONDS):
-            raise ValueError(
-                f"target_seconds must be between {MIN_SECONDS} and {MAX_SECONDS}"
-            )
+            raise ValueError(f"target_seconds must be between {MIN_SECONDS} and {MAX_SECONDS}")
         return self
 
     # --- derived -----------------------------------------------------------
@@ -135,8 +133,7 @@ class Storyboard(BaseModel):
                     notes.append(f"beat {beat.id}: generated diagram replaces its footage")
                 else:
                     notes.append(
-                        f"beat {beat.id}: {beat.overlay.kind} overlay "
-                        f'"{beat.overlay.text}"'
+                        f'beat {beat.id}: {beat.overlay.kind} overlay "{beat.overlay.text}"'
                     )
             if beat.emphasis:
                 spoken = {_norm(w) for w in beat.narration.split()}
@@ -177,9 +174,7 @@ class Storyboard(BaseModel):
 
     def save(self, path: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(self.model_dump(mode="json"), indent=2) + "\n", encoding="utf-8"
-        )
+        path.write_text(json.dumps(self.model_dump(mode="json"), indent=2) + "\n", encoding="utf-8")
         return path
 
 

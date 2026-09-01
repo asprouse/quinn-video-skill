@@ -92,9 +92,12 @@ def build_base(comp: Composition, dest: Path) -> Path:
             # Loop in case the stock clip is shorter than its slot, and cap
             # the input so we do not decode more than we use.
             args += [
-                "-stream_loop", "-1",
-                "-t", f"{segment.duration:.3f}",
-                "-i", str(segment.source),
+                "-stream_loop",
+                "-1",
+                "-t",
+                f"{segment.duration:.3f}",
+                "-i",
+                str(segment.source),
             ]
 
     chains = []
@@ -110,13 +113,20 @@ def build_base(comp: Composition, dest: Path) -> Path:
     ff.run(
         [
             *args,
-            "-filter_complex", graph,
-            "-map", "[base]",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "18",  # this is an intermediate; keep generational loss low
-            "-pix_fmt", "yuv420p",
-            "-r", str(FPS),
+            "-filter_complex",
+            graph,
+            "-map",
+            "[base]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "18",  # this is an intermediate; keep generational loss low
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            str(FPS),
             str(dest),
         ]
     )
@@ -130,17 +140,12 @@ def _segment_chain(index: int, segment: Segment, label: str) -> str:
     option that fills a vertical frame without pillarboxing.
     """
     frames = max(1, round(segment.duration * FPS))
-    cover = (
-        f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,"
-        f"crop={WIDTH}:{HEIGHT}"
-    )
+    cover = f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,crop={WIDTH}:{HEIGHT}"
 
     if segment.is_still:
         # One input frame in, `frames` frames out. zoompan needs the source
         # oversampled first or the zoom shimmers on high-contrast edges.
-        direction = (
-            f"1+0.12*on/{frames}" if segment.zoom_in else f"1.12-0.12*on/{frames}"
-        )
+        direction = f"1+0.12*on/{frames}" if segment.zoom_in else f"1.12-0.12*on/{frames}"
         return (
             f"[{index}:v]{cover},scale={WIDTH * 2}:{HEIGHT * 2},"
             f"zoompan=z='{direction}':d={frames}:s={WIDTH}x{HEIGHT}:fps={FPS},"
@@ -216,21 +221,35 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     ff.run(
         [
             *args,
-            "-filter_complex", ";".join(chains),
-            "-map", "[vout]",
-            "-map", "[aout]",
-            "-t", f"{comp.duration:.3f}",
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "20",
-            "-pix_fmt", "yuv420p",
-            "-profile:v", "high",
-            "-r", str(FPS),
+            "-filter_complex",
+            ";".join(chains),
+            "-map",
+            "[vout]",
+            "-map",
+            "[aout]",
+            "-t",
+            f"{comp.duration:.3f}",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "20",
+            "-pix_fmt",
+            "yuv420p",
+            "-profile:v",
+            "high",
+            "-r",
+            str(FPS),
             # Fast-start so the file plays before it finishes downloading.
-            "-movflags", "+faststart",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "48000",
+            "-movflags",
+            "+faststart",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-ar",
+            "48000",
             str(dest),
         ]
     )

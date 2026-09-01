@@ -68,9 +68,7 @@ def _ladder(
     steps = max(2, int(length / rung_gap))
     for i in range(1, steps):
         cx, cy = bx + dx * length * i / steps, by + dy * length * i / steps
-        draw.line(
-            [(cx + px, cy + py), (cx - px, cy - py)], fill=colour, width=max(2, rail - 2)
-        )
+        draw.line([(cx + px, cy + py), (cx - px, cy - py)], fill=colour, width=max(2, rail - 2))
 
 
 def _dimension(
@@ -170,9 +168,11 @@ def render_ladder_angle(
     bd = ImageDraw.Draw(backdrop)
     for y in range(0, HEIGHT * SS, 4):
         k = y / (HEIGHT * SS)
-        bd.line([(0, y), (WIDTH * SS, y)],
-                fill=tuple(round(BG_TOP[i] + (BG_BOTTOM[i] - BG_TOP[i]) * k) for i in range(3)),
-                width=4)
+        bd.line(
+            [(0, y), (WIDTH * SS, y)],
+            fill=tuple(round(BG_TOP[i] + (BG_BOTTOM[i] - BG_TOP[i]) * k) for i in range(3)),
+            width=4,
+        )
 
     frames = max(1, round(duration * fps))
     with VideoWriter(dest, fps) as writer:
@@ -180,29 +180,59 @@ def render_ladder_angle(
             t = n / fps
             canvas = backdrop.copy()
             d = ImageDraw.Draw(canvas)
+
             def s(v):
                 return v * SS
 
             fade = _phase(t, 0.0, 0.30)
             if fade > 0.01:
-                d.text((s(96), s(148)), "THE RULE", font=kicker,
-                       fill=tuple(round(c * fade) for c in HI_VIS[:3]))
-                d.text((s(96), s(196)), f"{up} : {out}", font=title,
-                       fill=tuple(round(c * fade) for c in INK))
+                d.text(
+                    (s(96), s(148)),
+                    "THE RULE",
+                    font=kicker,
+                    fill=tuple(round(c * fade) for c in HI_VIS[:3]),
+                )
+                d.text(
+                    (s(96), s(196)),
+                    f"{up} : {out}",
+                    font=title,
+                    fill=tuple(round(c * fade) for c in INK),
+                )
 
             g = _phase(t, at_structure, 0.40)
             if g > 0.01:
                 span = 780 * g
-                d.line([(s(190), s(ground_y)), (s(190 + span), s(ground_y))],
-                       fill=GROUND, width=s(6))
-                _hatch(d, s(198), s(ground_y), s(190 + span), 0,
-                       spacing=s(36), length=s(19), colour=(58, 63, 72))
+                d.line(
+                    [(s(190), s(ground_y)), (s(190 + span), s(ground_y))], fill=GROUND, width=s(6)
+                )
+                _hatch(
+                    d,
+                    s(198),
+                    s(ground_y),
+                    s(190 + span),
+                    0,
+                    spacing=s(36),
+                    length=s(19),
+                    colour=(58, 63, 72),
+                )
             w = _phase(t, at_structure + 0.15, 0.40)
             if w > 0.01:
-                d.line([(s(wall_x), s(ground_y)), (s(wall_x), s(ground_y - 690 * w))],
-                       fill=GROUND, width=s(6))
-                _hatch(d, s(wall_x + 24), s(ground_y - 690 * w), 0, s(ground_y),
-                       spacing=s(36), length=s(-19), colour=(58, 63, 72), vertical=True)
+                d.line(
+                    [(s(wall_x), s(ground_y)), (s(wall_x), s(ground_y - 690 * w))],
+                    fill=GROUND,
+                    width=s(6),
+                )
+                _hatch(
+                    d,
+                    s(wall_x + 24),
+                    s(ground_y - 690 * w),
+                    0,
+                    s(ground_y),
+                    spacing=s(36),
+                    length=s(-19),
+                    colour=(58, 63, 72),
+                    vertical=True,
+                )
 
             swing = _phase(t, at_ladder, 0.75)
             if swing > 0.01:
@@ -210,43 +240,75 @@ def render_ladder_angle(
                 # Angle arc, so the ratio reads as a geometry not a slogan.
                 if swing > 0.9:
                     r = 150
-                    d.arc([s(bx - r), s(ground_y - r), s(bx + r), s(ground_y + r)],
-                          start=-angle, end=0, fill=(126, 134, 146), width=s(4))
-                    d.text((s(bx + 46), s(ground_y - 76)), f"{angle:.0f}\u00b0",
-                           font=small, fill=(158, 166, 178))
-                _ladder(d, (s(bx), s(ground_y)), (s(top[0]), s(top[1])),
-                        width=s(86), colour=INK, rail=s(8), rung_gap=s(76))
+                    d.arc(
+                        [s(bx - r), s(ground_y - r), s(bx + r), s(ground_y + r)],
+                        start=-angle,
+                        end=0,
+                        fill=(126, 134, 146),
+                        width=s(4),
+                    )
+                    d.text(
+                        (s(bx + 46), s(ground_y - 76)),
+                        f"{angle:.0f}\u00b0",
+                        font=small,
+                        fill=(158, 166, 178),
+                    )
+                _ladder(
+                    d,
+                    (s(bx), s(ground_y)),
+                    (s(top[0]), s(top[1])),
+                    width=s(86),
+                    colour=INK,
+                    rail=s(8),
+                    rung_gap=s(76),
+                )
 
             r = _phase(t, at_rise, 0.45)
             if r > 0.01:
                 x = 812
                 span = (ground_y - top[1]) * r
-                d.line([(s(x), s(ground_y)), (s(x), s(ground_y - span))],
-                       fill=HI_VIS[:3], width=s(5))
-                d.line([(s(x - 20), s(ground_y)), (s(x + 20), s(ground_y))],
-                       fill=HI_VIS[:3], width=s(5))
+                d.line(
+                    [(s(x), s(ground_y)), (s(x), s(ground_y - span))], fill=HI_VIS[:3], width=s(5)
+                )
+                d.line(
+                    [(s(x - 20), s(ground_y)), (s(x + 20), s(ground_y))],
+                    fill=HI_VIS[:3],
+                    width=s(5),
+                )
                 if r > 0.95:
                     _arrow(d, (s(x), s(top[1])), (0, -1), size=s(20), colour=HI_VIS[:3])
-                    d.text((s(x + 34), s((ground_y + top[1]) / 2 - 50)), str(up),
-                           font=label, fill=HI_VIS[:3])
+                    d.text(
+                        (s(x + 34), s((ground_y + top[1]) / 2 - 50)),
+                        str(up),
+                        font=label,
+                        fill=HI_VIS[:3],
+                    )
 
             ru = _phase(t, at_run, 0.45)
             if ru > 0.01:
                 y = ground_y + 62
                 span = run * ru
-                d.line([(s(base_x), s(y)), (s(base_x + span), s(y))],
-                       fill=HI_VIS[:3], width=s(5))
-                d.line([(s(base_x), s(y - 18)), (s(base_x), s(y + 18))],
-                       fill=HI_VIS[:3], width=s(5))
+                d.line([(s(base_x), s(y)), (s(base_x + span), s(y))], fill=HI_VIS[:3], width=s(5))
+                d.line(
+                    [(s(base_x), s(y - 18)), (s(base_x), s(y + 18))], fill=HI_VIS[:3], width=s(5)
+                )
                 if ru > 0.95:
                     _arrow(d, (s(wall_x), s(y)), (1, 0), size=s(20), colour=HI_VIS[:3])
-                    d.text((s((base_x + wall_x) / 2 - 14), s(y + 26)), str(out),
-                           font=label, fill=HI_VIS[:3])
+                    d.text(
+                        (s((base_x + wall_x) / 2 - 14), s(y + 26)),
+                        str(out),
+                        font=label,
+                        fill=HI_VIS[:3],
+                    )
 
             cap = _phase(t, at_run + 0.30, 0.40)
             if cap > 0.01:
-                d.text((s(96), s(356)), f"{up} up, {out} out", font=small,
-                       fill=tuple(round(DIM[i] + (INK[i] - DIM[i]) * cap) for i in range(3)))
+                d.text(
+                    (s(96), s(356)),
+                    f"{up} up, {out} out",
+                    font=small,
+                    fill=tuple(round(DIM[i] + (INK[i] - DIM[i]) * cap) for i in range(3)),
+                )
 
             writer.write(canvas.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS))
 
@@ -261,8 +323,11 @@ def _tick(draw, frm, to, direction) -> None:
     """
     fx, fy = frm
     tx_, ty_ = to
-    draw.line([(fx - direction * 10 * SS, fy), (tx_ - direction * 12 * SS, ty_)],
-              fill=(236, 240, 248, 150), width=2 * SS)
+    draw.line(
+        [(fx - direction * 10 * SS, fy), (tx_ - direction * 12 * SS, ty_)],
+        fill=(236, 240, 248, 150),
+        width=2 * SS,
+    )
 
 
 def render_ladder_annotation(
@@ -347,10 +412,15 @@ def render_ladder_annotation(
 
             fade = _phase(t, 0.0, 0.30)
             if fade > 0.01:
-                d.text((96 * SS, 132 * SS), "THE RULE", font=kicker,
-                       fill=(*HI_VIS[:3], round(255 * fade)))
-                d.text((96 * SS, 180 * SS), f"{up} : {out}", font=title,
-                       fill=(*INK, round(255 * fade)))
+                d.text(
+                    (96 * SS, 132 * SS),
+                    "THE RULE",
+                    font=kicker,
+                    fill=(*HI_VIS[:3], round(255 * fade)),
+                )
+                d.text(
+                    (96 * SS, 180 * SS), f"{up} : {out}", font=title, fill=(*INK, round(255 * fade))
+                )
 
             # Nothing is drawn for the wall or the ground. The photograph has
             # both already, and an approximated line beside a real one reads
@@ -360,13 +430,21 @@ def render_ladder_annotation(
             trace = _phase(t, at_ladder, 0.60)
             if trace > 0.01:
                 # Trace the ladder itself, so the eye is told what to look at.
-                d.line([(bx, by), (bx + (tx - bx) * trace, by + (ty - by) * trace)],
-                       fill=(*HI_VIS[:3], 235), width=7 * SS)
+                d.line(
+                    [(bx, by), (bx + (tx - bx) * trace, by + (ty - by) * trace)],
+                    fill=(*HI_VIS[:3], 235),
+                    width=7 * SS,
+                )
                 if trace > 0.9:
                     r = 104 * SS
                     start, end = (180 - angle, 180) if direction > 0 else (0, angle)
-                    d.arc([bx - r, by - r, bx + r, by + r], start=start, end=end,
-                          fill=(235, 240, 248, 200), width=4 * SS)
+                    d.arc(
+                        [bx - r, by - r, bx + r, by + r],
+                        start=start,
+                        end=end,
+                        fill=(235, 240, 248, 200),
+                        width=4 * SS,
+                    )
                     # The arc alone. A degrees label has nowhere to sit here:
                     # inside the triangle it collides with the run dimension,
                     # outside it disappears behind the ladder's back legs. The
@@ -381,13 +459,16 @@ def render_ladder_annotation(
                 x = tx - direction * 132 * SS
                 _tick(d, (tx, ty), (x, ty), direction)
                 _tick(d, (tx, by), (x, by), direction)
-                d.line([(x, by), (x, by - (by - ty) * r)],
-                       fill=(*HI_VIS[:3], 255), width=5 * SS)
+                d.line([(x, by), (x, by - (by - ty) * r)], fill=(*HI_VIS[:3], 255), width=5 * SS)
                 if r > 0.95:
                     _arrow(d, (x, ty), (0, -1), size=22 * SS, colour=(*HI_VIS[:3], 255))
                     _arrow(d, (x, by), (0, 1), size=22 * SS, colour=(*HI_VIS[:3], 255))
-                    d.text((x - direction * 92 * SS, (by + ty) / 2 - 58 * SS), str(up),
-                           font=label, fill=(*HI_VIS[:3], 255))
+                    d.text(
+                        (x - direction * 92 * SS, (by + ty) / 2 - 58 * SS),
+                        str(up),
+                        font=label,
+                        fill=(*HI_VIS[:3], 255),
+                    )
 
             ru = _phase(t, at_run, 0.45)
             if ru > 0.01:
@@ -396,15 +477,22 @@ def render_ladder_annotation(
                 # empty in the photograph, and it is the only room near the
                 # feet -- anything below them falls off the frame.
                 y = by - 6 * SS
-                d.line([(corner[0], y), (corner[0] + (bx - corner[0]) * ru, y)],
-                       fill=(*HI_VIS[:3], 255), width=5 * SS)
+                d.line(
+                    [(corner[0], y), (corner[0] + (bx - corner[0]) * ru, y)],
+                    fill=(*HI_VIS[:3], 255),
+                    width=5 * SS,
+                )
                 if ru > 0.95:
-                    _arrow(d, (bx, y), (direction, 0), size=20 * SS,
-                           colour=(*HI_VIS[:3], 255))
-                    _arrow(d, (corner[0], y), (-direction, 0), size=20 * SS,
-                           colour=(*HI_VIS[:3], 255))
-                    d.text(((bx + corner[0]) / 2 - 24 * SS, y - 150 * SS), str(out),
-                           font=label, fill=(*HI_VIS[:3], 255))
+                    _arrow(d, (bx, y), (direction, 0), size=20 * SS, colour=(*HI_VIS[:3], 255))
+                    _arrow(
+                        d, (corner[0], y), (-direction, 0), size=20 * SS, colour=(*HI_VIS[:3], 255)
+                    )
+                    d.text(
+                        ((bx + corner[0]) / 2 - 24 * SS, y - 150 * SS),
+                        str(out),
+                        font=label,
+                        fill=(*HI_VIS[:3], 255),
+                    )
 
             canvas = Image.alpha_composite(canvas.convert("RGBA"), layer).convert("RGB")
 

@@ -234,7 +234,6 @@ def _attempt(
     key = require("FAL_KEY", "generated b-roll")
     started = time.monotonic()
 
-
     size: dict = (
         {"aspect_ratio": "9:16"}
         if model in ASPECT_MODELS

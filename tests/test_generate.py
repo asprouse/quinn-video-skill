@@ -78,6 +78,6 @@ def test_prompts_carry_the_subject_and_house_style():
     prompt = build_prompt("a worker on a ladder")
 
     assert prompt.startswith("a worker on a ladder.")
-    assert "hi-vis" in prompt          # recurring subject, for continuity
-    assert "35mm" in prompt            # house style, so shots match
+    assert "hi-vis" in prompt  # recurring subject, for continuity
+    assert "35mm" in prompt  # house style, so shots match
     assert "no watermark" in prompt

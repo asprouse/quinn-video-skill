@@ -164,10 +164,7 @@ class Pixabay:
         response.raise_for_status()
         hits = response.json().get("hits", [])
 
-        return [
-            self._video(h) if kind == "video" else self._photo(h)
-            for h in hits
-        ]
+        return [self._video(h) if kind == "video" else self._photo(h) for h in hits]
 
     @staticmethod
     def _video(item: dict[str, Any]) -> Candidate:

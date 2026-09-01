@@ -287,11 +287,22 @@ def draw_overlay(canvas, text: str, progress: float, *, kind: str = "stat") -> N
     draw.rectangle([x, y - 34, x + 132, y - 22], fill=(*HI_VIS[:3], alpha))
 
     for line in _wrap(face, text.upper(), WIDTH - 320):
-        draw.text((x + 4, y + 6), line, font=face,
-                  fill=(0, 0, 0, round(alpha * 0.55)), stroke_width=8,
-                  stroke_fill=(0, 0, 0, round(alpha * 0.55)))
-        draw.text((x, y), line, font=face, fill=(255, 255, 255, alpha),
-                  stroke_width=8, stroke_fill=(*INK[:3], alpha))
+        draw.text(
+            (x + 4, y + 6),
+            line,
+            font=face,
+            fill=(0, 0, 0, round(alpha * 0.55)),
+            stroke_width=8,
+            stroke_fill=(0, 0, 0, round(alpha * 0.55)),
+        )
+        draw.text(
+            (x, y),
+            line,
+            font=face,
+            fill=(255, 255, 255, alpha),
+            stroke_width=8,
+            stroke_fill=(*INK[:3], alpha),
+        )
         y += 92
 
 

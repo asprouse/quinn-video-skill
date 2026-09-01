@@ -103,9 +103,12 @@ def sample_frames(video: Path, directory: Path, interval: float = SAMPLE_INTERVA
         stale.unlink()
     ff.run(
         [
-            "-i", str(video),
-            "-vf", f"fps=1/{interval},scale=270:480",
-            "-q:v", "4",
+            "-i",
+            str(video),
+            "-vf",
+            f"fps=1/{interval},scale=270:480",
+            "-q:v",
+            "4",
             str(directory / "frame-%04d.jpg"),
         ]
     )
@@ -162,7 +165,9 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
     if not (MIN_SECONDS <= duration <= MAX_SECONDS):
         report.findings.append(
             Finding(
-                "blocker", None, "duration",
+                "blocker",
+                None,
+                "duration",
                 f"{duration:.1f}s is outside the {MIN_SECONDS}-{MAX_SECONDS}s brief",
                 "rewrite the script to fit, then re-narrate",
             )
@@ -170,7 +175,9 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
     if (report.width, report.height) != (WIDTH, HEIGHT):
         report.findings.append(
             Finding(
-                "blocker", None, "format",
+                "blocker",
+                None,
+                "format",
                 f"{report.width}x{report.height} is not vertical 1080x1920",
                 "check the compose settings",
             )
@@ -179,13 +186,23 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
     # --- pacing
     if report.wpm < 140:
         report.findings.append(
-            Finding("warn", None, "pacing", f"{report.wpm} wpm reads as a lecture",
-                    "tighten the script or raise the voice speed"),
+            Finding(
+                "warn",
+                None,
+                "pacing",
+                f"{report.wpm} wpm reads as a lecture",
+                "tighten the script or raise the voice speed",
+            ),
         )
     for at, gap in dead_air(words):
         report.findings.append(
-            Finding("warn", round(at, 2), "dead air", f"{gap:.2f}s of silence",
-                    "shorten the pause in the script, or let a visual beat carry it"),
+            Finding(
+                "warn",
+                round(at, 2),
+                "dead air",
+                f"{gap:.2f}s of silence",
+                "shorten the pause in the script, or let a visual beat carry it",
+            ),
         )
 
     # --- audio
@@ -200,8 +217,13 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
         if stats["brightness"] < 0.04:
             report.findings.append(
-                Finding("blocker", at, "black frame", "frame is essentially black",
-                        "the shot at this point is missing or failed to decode"),
+                Finding(
+                    "blocker",
+                    at,
+                    "black frame",
+                    "frame is essentially black",
+                    "the shot at this point is missing or failed to decode",
+                ),
             )
 
     report.findings.extend(_staging_findings(run, words))
@@ -211,8 +233,13 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
     opening = [f for f in report.frames if f["at"] <= 2.0]
     if opening and all(f["brightness"] < 0.12 for f in opening):
         report.findings.append(
-            Finding("blocker", 0.0, "hook", "the opening two seconds are near-black",
-                    "lead with the strongest shot, not a dark one"),
+            Finding(
+                "blocker",
+                0.0,
+                "hook",
+                "the opening two seconds are near-black",
+                "lead with the strongest shot, not a dark one",
+            ),
         )
 
     log(f"grade: {len(report.blockers)} blockers, {len(report.findings)} findings")
@@ -237,7 +264,9 @@ def _footage_findings(run: Run) -> list[Finding]:
         if len(beats) > 1:
             findings.append(
                 Finding(
-                    "warn", None, "repeated footage",
+                    "warn",
+                    None,
+                    "repeated footage",
                     f"{name} is used on beats {', '.join(beats)}",
                     "pick a distinct clip, or replace the beat with a generated graphic",
                 )
@@ -299,9 +328,10 @@ def _staging_findings(run: Run, words: list[Word]) -> list[Finding]:
 def _audio_findings(video: Path) -> list[Finding]:
     """Check the mix actually landed near broadcast loudness."""
     result = subprocess.run(
-        [ff.binary(), "-hide_banner", "-i", str(video), "-af", "volumedetect",
-         "-f", "null", "-"],
-        capture_output=True, text=True, check=False,
+        [ff.binary(), "-hide_banner", "-i", str(video), "-af", "volumedetect", "-f", "null", "-"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     findings: list[Finding] = []
     for line in result.stderr.splitlines():
@@ -309,15 +339,25 @@ def _audio_findings(video: Path) -> list[Finding]:
             mean = float(line.split("mean_volume:")[1].strip().split()[0])
             if mean < -30:
                 findings.append(
-                    Finding("blocker", None, "audio", f"mean volume {mean:.1f} dB is near-silent",
-                            "check the narration track reached the mix"),
+                    Finding(
+                        "blocker",
+                        None,
+                        "audio",
+                        f"mean volume {mean:.1f} dB is near-silent",
+                        "check the narration track reached the mix",
+                    ),
                 )
         if "max_volume:" in line:
             peak = float(line.split("max_volume:")[1].strip().split()[0])
             if peak > -0.5:
                 findings.append(
-                    Finding("warn", None, "audio", f"peak {peak:.1f} dB is clipping",
-                            "lower the music bed gain"),
+                    Finding(
+                        "warn",
+                        None,
+                        "audio",
+                        f"peak {peak:.1f} dB is clipping",
+                        "lower the music bed gain",
+                    ),
                 )
     return findings
 
@@ -355,21 +395,22 @@ def _html(run: Run, report: Report) -> str:
         if not path.exists():
             continue
         data = b64encode(path.read_bytes()).decode()
-        flagged = any(
-            f.at is not None and abs(f.at - frame["at"]) < 0.01 for f in report.findings
-        )
+        flagged = any(f.at is not None and abs(f.at - frame["at"]) < 0.01 for f in report.findings)
         strip.append(
             f'<figure class="{"flag" if flagged else ""}">'
             f'<img src="data:image/jpeg;base64,{data}" alt="frame at {frame["at"]}s">'
-            f'<figcaption>{frame["at"]:.1f}s</figcaption></figure>'
+            f"<figcaption>{frame['at']:.1f}s</figcaption></figure>"
         )
 
-    rows = "".join(
-        f'<tr class="{esc(f.severity)}"><td>{esc(f.severity)}</td>'
-        f'<td>{"" if f.at is None else f"{f.at:.1f}s"}</td>'
-        f"<td>{esc(f.criterion)}</td><td>{esc(f.detail)}</td><td>{esc(f.fix)}</td></tr>"
-        for f in sorted(report.findings, key=lambda f: (f.severity != "blocker", f.at or 0))
-    ) or '<tr><td colspan="5">Nothing flagged mechanically. Judge it by eye.</td></tr>'
+    rows = (
+        "".join(
+            f'<tr class="{esc(f.severity)}"><td>{esc(f.severity)}</td>'
+            f"<td>{'' if f.at is None else f'{f.at:.1f}s'}</td>"
+            f"<td>{esc(f.criterion)}</td><td>{esc(f.detail)}</td><td>{esc(f.fix)}</td></tr>"
+            for f in sorted(report.findings, key=lambda f: (f.severity != "blocker", f.at or 0))
+        )
+        or '<tr><td colspan="5">Nothing flagged mechanically. Judge it by eye.</td></tr>'
+    )
 
     curve = "".join(
         f'<div class="bar" style="height:{min(100, v / 2.4):.0f}%" title="{t}s — {v} wpm"></div>'
@@ -377,8 +418,10 @@ def _html(run: Run, report: Report) -> str:
     )
 
     verdict = (
-        f"{len(report.blockers)} blocker(s)" if report.blockers
-        else f"{len(report.findings)} warning(s)" if report.findings
+        f"{len(report.blockers)} blocker(s)"
+        if report.blockers
+        else f"{len(report.findings)} warning(s)"
+        if report.findings
         else "clean"
     )
 

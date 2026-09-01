@@ -159,9 +159,8 @@ def check_heygen_live(keys: Keys) -> Iterable[Check]:
             if avatar_id:
                 looked_up = client.avatar(avatar_id)
                 engines = ",".join(
-                    e.replace("avatar_", "") for e in (looked_up or {}).get(
-                        "supported_api_engines"
-                    ) or []
+                    e.replace("avatar_", "")
+                    for e in (looked_up or {}).get("supported_api_engines") or []
                 )
                 yield Check(
                     "configured avatar",
