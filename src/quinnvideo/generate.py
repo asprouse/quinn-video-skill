@@ -83,7 +83,7 @@ def _borders_are_flat(data: bytes, tolerance: int = 6, dark: int = 40) -> str | 
         w, h = grey.size
 
         def band(y0: int, y1: int) -> tuple[float, float]:
-            pixels = list(grey.crop((0, y0, w, y1)).getdata())
+            pixels = list(grey.crop((0, y0, w, y1)).tobytes())
             return statistics.fmean(pixels), statistics.pstdev(pixels)
 
         top_mean, top_sd = band(0, max(2, h // 40))
@@ -100,7 +100,7 @@ class GenerationError(RuntimeError):
     pass
 
 
-class PromptBlocked(GenerationError):
+class PromptBlockedError(GenerationError):
     """The provider's safety filter refused the prompt."""
 
 
@@ -115,7 +115,7 @@ def _reject_if_bad(data: bytes, model: str, width: int, height: int) -> None:
     import io
 
     with Image.open(io.BytesIO(data)) as image:
-        pixels = list(image.convert("L").getdata())
+        pixels = list(image.convert("L").tobytes())
     mean = statistics.fmean(pixels)
     spread = statistics.pstdev(pixels)
 
@@ -123,7 +123,7 @@ def _reject_if_bad(data: bytes, model: str, width: int, height: int) -> None:
     # a prompt. It arrives at an off-size too, so check this first and give
     # the real reason rather than a confusing complaint about resolution.
     if mean < 2 and spread < 2:
-        raise PromptBlocked(
+        raise PromptBlockedError(
             f"{model} returned a blank frame — the prompt was almost certainly refused "
             "by the safety filter. Describe the hazard rather than the injury: "
             '"overreaching", "off balance", "the ladder tipping" rather than falling or harm.'

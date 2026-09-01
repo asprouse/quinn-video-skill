@@ -127,7 +127,7 @@ def frame_stats(path: Path) -> dict:
 
     with Image.open(path) as handle:
         image = handle.convert("L")
-        pixels = list(image.getdata())
+        pixels = list(image.tobytes())
 
     return {"brightness": round(statistics.fmean(pixels) / 255, 3)}
 

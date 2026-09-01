@@ -25,6 +25,12 @@ jobs:
       - name: Lint
         run: uvx ruff check src tests
 
+      - name: Format check
+        run: uvx ruff format --check src tests
+
+      - name: Type check
+        run: uvx ty check src
+
       - name: Download typefaces
         run: uv run quinn-video fonts
 

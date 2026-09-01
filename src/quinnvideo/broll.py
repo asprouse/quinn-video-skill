@@ -120,9 +120,11 @@ def _cache_thumb(candidate: Candidate, directory: Path) -> Path | None:
         response = httpx.get(candidate.preview_url, timeout=30.0, follow_redirects=True)
         response.raise_for_status()
         dest.write_bytes(response.content)
-        return dest
     except Exception:
+        # A thumbnail that will not download costs us one candidate, not the
+        # run. The gate simply has one fewer option to look at.
         return None
+    return dest
 
 
 def fetch_picks(

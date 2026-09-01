@@ -11,7 +11,7 @@ import shutil
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from .config import FPS, HEIGHT, WIDTH
 
@@ -120,7 +120,7 @@ class VideoWriter:
         self._process: subprocess.Popen[bytes] | None = None
         self.frames = 0
 
-    def __enter__(self) -> VideoWriter:
+    def __enter__(self) -> Self:
         self.dest.parent.mkdir(parents=True, exist_ok=True)
         self._process = subprocess.Popen(
             [
@@ -136,12 +136,14 @@ class VideoWriter:
         return self
 
     def write(self, image: Any) -> None:
-        assert self._process and self._process.stdin
+        if not (self._process and self._process.stdin):
+            raise FFmpegError("writer used outside its context manager")
         self._process.stdin.write(image.tobytes())
         self.frames += 1
 
     def __exit__(self, *exc: object) -> None:
-        assert self._process
+        if not self._process:
+            raise FFmpegError("writer used outside its context manager")
         if self._process.stdin:
             self._process.stdin.close()
         stderr = self._process.stderr.read() if self._process.stderr else b""
@@ -167,7 +169,7 @@ class AlphaWriter:
         self._process: subprocess.Popen[bytes] | None = None
         self.frames = 0
 
-    def __enter__(self) -> AlphaWriter:
+    def __enter__(self) -> Self:
         self.dest.parent.mkdir(parents=True, exist_ok=True)
         self._process = subprocess.Popen(
             [
@@ -187,12 +189,14 @@ class AlphaWriter:
         return self
 
     def write(self, image: Any) -> None:
-        assert self._process and self._process.stdin
+        if not (self._process and self._process.stdin):
+            raise FFmpegError("writer used outside its context manager")
         self._process.stdin.write(image.tobytes())
         self.frames += 1
 
     def __exit__(self, *exc: object) -> None:
-        assert self._process
+        if not self._process:
+            raise FFmpegError("writer used outside its context manager")
         # Closing stdin is what tells ffmpeg the stream is done, so it has to
         # happen before we wait -- and rules out communicate(), which would
         # try to flush the handle we just closed.

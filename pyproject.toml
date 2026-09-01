@@ -26,12 +26,27 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+select = [
+    "E", "F", "I", "UP", "B", "SIM", "RUF",
+    "ARG",   # dead parameters, which are usually a refactor left half-done
+    "S101",  # asserts vanish under -O; raise something real instead
+    "PYI",   # context managers should return Self
+    "PT",    # pytest style
+    "TRY",   # exception handling shape
+    "N",     # naming
+]
 ignore = [
     # Network and codec fallbacks catch broadly on purpose: a thumbnail that
     # will not download must degrade, not abort a paid render.
     "BLE001",
+    # Long messages inside raise() are the point -- these tell the operator
+    # exactly what to change, and hoisting them to variables hurts reading.
+    "TRY003",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert; that is what tests do.
+"tests/*" = ["S101", "PT018"]
 
 [dependency-groups]
 dev = ["pytest>=8.0"]

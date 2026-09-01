@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 import httpx
 
@@ -224,7 +224,7 @@ class Stock:
         if self.pixabay:
             self.pixabay.close()
 
-    def __enter__(self) -> Stock:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:

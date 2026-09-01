@@ -16,7 +16,7 @@ import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 import httpx
 
@@ -61,7 +61,7 @@ class HeyGenError(RuntimeError):
     """A HeyGen request failed in a way we cannot recover from."""
 
 
-class MattingUnsupported(HeyGenError):
+class MattingUnsupportedError(HeyGenError):
     """The chosen avatar was not trained with background separation.
 
     Transparent WebM output requires a matting-trained avatar. Older avatars
@@ -120,7 +120,7 @@ class HeyGen:
             timeout=timeout,
         )
 
-    def __enter__(self) -> HeyGen:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -164,7 +164,7 @@ class HeyGen:
 
         blob = f"{code} {message}".lower()
         if "matting" in blob or "transparent" in blob or "alpha" in blob:
-            return MattingUnsupported(
+            return MattingUnsupportedError(
                 f"This avatar does not support transparent output: {message}\n"
                 "Pick a more recently created avatar "
                 "(`quinn-video doctor --list-avatars`), or render opaque."

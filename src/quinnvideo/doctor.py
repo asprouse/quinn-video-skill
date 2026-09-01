@@ -197,7 +197,7 @@ def check_heygen_live(keys: Keys) -> Iterable[Check]:
         yield Check("heygen api", False, f"{type(exc).__name__}: {exc}")
 
 
-def check_defaults(keys: Keys) -> Iterable[Check]:
+def check_defaults() -> Iterable[Check]:
     avatar = config.env("QUINN_AVATAR_ID")
     voice = config.env("QUINN_VOICE_ID")
     yield Check(
@@ -220,7 +220,7 @@ def run() -> int:
         ("Rendering toolchain", list(check_ffmpeg()) + list(check_fonts())),
         ("Credentials", list(check_keys(keys))),
         ("HeyGen account", list(check_heygen_live(keys))),
-        ("Defaults", list(check_defaults(keys))),
+        ("Defaults", list(check_defaults())),
     ]
 
     print("\nquinn-video doctor\n")
@@ -249,7 +249,7 @@ def run() -> int:
     return 0
 
 
-def list_avatars(search: str | None = None, *, private_only: bool = False, limit: int = 40) -> int:
+def list_avatars(search: str | None = None, *, limit: int = 40) -> int:
     """Print a shortlist of avatars worth using for a vertical video.
 
     HeyGen exposes roughly ten thousand avatars, most of them landscape studio

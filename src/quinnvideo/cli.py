@@ -169,7 +169,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         run = _resolve_run(args.run)
         board = run.storyboard()
         speech = pipeline.narrate(run, board, log=_log)
-        timings = pipeline.timings_for(run, board, speech, log=_log)
+        timings = pipeline.timings_for(board, speech, log=_log)
         pipeline.render_overlay(run, speech, timings, force=args.force, log=_log)
         return 0
 
@@ -179,7 +179,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         run = _resolve_run(args.run)
         board = run.storyboard()
         speech = pipeline.narrate(run, board, log=_log)
-        timings = pipeline.timings_for(run, board, speech, log=_log)
+        timings = pipeline.timings_for(board, speech, log=_log)
 
         broll.gather(run, board, per_query=args.per_query, log=_log)
 
@@ -206,7 +206,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         # Generated graphics are cut to the length of their beat, so they need
         # the timeline. Narration is already paid for and cached.
         speech = pipeline.narrate(run, board, log=_log)
-        beat_timings = pipeline.timings_for(run, board, speech, log=_log)
+        beat_timings = pipeline.timings_for(board, speech, log=_log)
         spans = {t.beat.id: (t.start, t.duration) for t in beat_timings}
 
         # Resolve each beat's picks in the order they were written. Grouping
@@ -287,7 +287,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         run = _resolve_run(args.run)
         board = run.storyboard()
         speech = pipeline.narrate(run, board, log=_log)
-        timings = pipeline.timings_for(run, board, speech, log=_log)
+        timings = pipeline.timings_for(board, speech, log=_log)
         pipeline.render_overlay(run, speech, timings, log=_log)
 
         picks = {
@@ -378,7 +378,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         run = _resolve_run(args.run)
         board = run.storyboard()
         speech = pipeline.narrate(run, board, log=_log)
-        timings = pipeline.timings_for(run, board, speech, log=_log)
+        timings = pipeline.timings_for(board, speech, log=_log)
 
         reviews = verifier.collect(run, timings, speech.words, log=_log)
         verifier.write_manifest(run, reviews)

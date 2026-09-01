@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import ff
-from .heygen import HeyGen, HeyGenError, MattingUnsupported, download, estimate_cost
+from .heygen import HeyGen, HeyGenError, MattingUnsupportedError, download, estimate_cost
 
 # Just long enough to get a real render back. Billing is per second, so this
 # is the smallest useful question we can ask.
@@ -61,14 +61,14 @@ def probe_transparency(
                 engine=engine,
                 idempotency_key=f"probe-{avatar_id}-{engine}",
             )
-        except MattingUnsupported as exc:
+        except MattingUnsupportedError as exc:
             # Rejected before rendering, which is the cheapest possible answer.
             return ProbeResult(avatar_id, engine, False, str(exc).splitlines()[0], cost=0.0)
 
         log(f"probe: {video_id}, waiting")
         try:
             info = client.wait_for_video(video_id, on_poll=lambda s: log(f"probe: {s}"))
-        except MattingUnsupported as exc:
+        except MattingUnsupportedError as exc:
             return ProbeResult(avatar_id, engine, False, str(exc).splitlines()[0], cost=cost)
 
     dest = keep or Path(tempfile.mkdtemp()) / "probe.webm"
@@ -112,6 +112,6 @@ def _has_alpha(video: Path) -> tuple[bool, str]:
     if high == 0:
         return False, "fully transparent — the render appears empty"
 
-    transparent_px = sum(1 for value in alpha.getdata() if value < 16)
+    transparent_px = sum(1 for value in alpha.tobytes() if value < 16)
     share = transparent_px / (image.width * image.height)
     return True, f"alpha present — {share:.0%} of the frame is transparent"

@@ -248,7 +248,7 @@ def render_ladder_angle(
                 d.text((s(96), s(356)), f"{up} up, {out} out", font=small,
                        fill=tuple(round(DIM[i] + (INK[i] - DIM[i]) * cap) for i in range(3)))
 
-            writer.write(canvas.resize((WIDTH, HEIGHT), Image.LANCZOS))
+            writer.write(canvas.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS))
 
     return dest
 
@@ -324,7 +324,7 @@ def render_ladder_annotation(
     source = Image.open(photo).convert("RGB")
     scale = max(WIDTH * SS / source.width, HEIGHT * SS / source.height)
     source = source.resize(
-        (round(source.width * scale), round(source.height * scale)), Image.LANCZOS
+        (round(source.width * scale), round(source.height * scale)), Image.Resampling.LANCZOS
     )
     left = (source.width - WIDTH * SS) // 2
     top_off = (source.height - HEIGHT * SS) // 2
@@ -415,6 +415,6 @@ def render_ladder_annotation(
                 ox, oy = (WIDTH * SS - cw) // 2, (HEIGHT * SS - ch) // 2
                 canvas = canvas.crop((ox, oy, ox + cw, oy + ch))
 
-            writer.write(canvas.resize((WIDTH, HEIGHT), Image.LANCZOS))
+            writer.write(canvas.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS))
 
     return dest

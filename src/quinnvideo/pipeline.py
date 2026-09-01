@@ -321,7 +321,7 @@ def build(
 
 
 def timings_for(
-    run: Run, board: Storyboard, speech: Speech, *, log: Log = _noop
+    board: Storyboard, speech: Speech, *, log: Log = _noop
 ) -> list[BeatTiming]:
     timings = align(board, speech.words)
     estimated = [t for t in timings if not t.aligned]
