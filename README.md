@@ -15,21 +15,41 @@ with it.
 
 ## Install
 
-```bash
+```
 /plugin marketplace add asprouse/quinn-video-skill
 /plugin install quinn-video
 ```
 
+Then ask Claude for a video and the skill drives itself. It runs the CLI out of
+the plugin's own checkout, so nothing needs to be installed globally.
+
+> Install from **GitHub**, not from a local path. A local-directory install
+> copies the working tree as-is, ignoring `.gitignore` — which means `.env`,
+> `runs/` and `.venv` come along too. Ours was 684 MB with live API keys in it.
+
 ## Setup
 
+Run these **in the project you want the videos to appear in**:
+
 ```bash
-cp .env.example .env          # add HEYGEN_API_KEY and PEXELS_API_KEY
-uv run quinn-video fonts      # download the caption typefaces (OFL)
-uv run quinn-video doctor     # verify toolchain, credentials, account
+export QV="uv run --project ${CLAUDE_PLUGIN_ROOT} quinn-video"
+
+cp "${CLAUDE_PLUGIN_ROOT}/.env.example" .env   # add HEYGEN_API_KEY, PEXELS_API_KEY
+$QV fonts                                       # typefaces, once per machine
+$QV doctor                                      # toolchain, credentials, balance
 ```
 
-`doctor` runs before anything that costs money. Pick your presenter with
-`--list-avatars` and `--list-voices`, and put the ids in `.env`.
+`doctor` runs before anything that costs money, and reports the HeyGen balance
+and how many renders it affords. Pick a presenter with `--list-avatars` and
+`--list-voices`, and put the ids in `.env`.
+
+Everything the run produces — `runs/`, footage, the scorecard — lands beside
+your project. Only the code lives in the plugin.
+
+### Working on the skill itself
+
+From a checkout, `uv run quinn-video …` works directly and no `--project` is
+needed.
 
 ## How it works
 
@@ -60,18 +80,18 @@ requirement the brief states most sharply: *nothing random or unrelated*.
 Ask Claude for a video and the skill drives itself. To run the stages by hand:
 
 ```bash
-uv run quinn-video init "ladder safety"   # create a run directory
+$QV init "ladder safety"                  # create a run directory
 # write storyboard.json into it
-uv run quinn-video check                  # validate and check pacing
-uv run quinn-video narrate                # costs credits
-uv run quinn-video broll                  # search + cache thumbnails
+$QV check                  # validate and check pacing
+$QV narrate                # costs credits
+$QV broll                  # search + cache thumbnails
 # review thumbnails, write picks.json
-uv run quinn-video fetch
-uv run quinn-video avatar                 # costs credits
-uv run quinn-video build
-uv run quinn-video verify                 # every shot beside its narration
-uv run quinn-video grade                  # writes report.html
-uv run quinn-video status                 # what this run has produced
+$QV fetch
+$QV avatar                 # costs credits
+$QV build
+$QV verify                 # every shot beside its narration
+$QV grade                  # writes report.html
+$QV status                 # what this run has produced
 ```
 
 Every stage caches. Re-running is cheap and safe, and the two stages that spend

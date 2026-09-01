@@ -31,3 +31,7 @@ assets/fonts/*.otf
 
 # Client brief — not ours to redistribute
 quinn_video_brief_v2.pdf
+
+# IDE
+.idea/
+.vscode/
