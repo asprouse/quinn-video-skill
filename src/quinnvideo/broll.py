@@ -161,8 +161,36 @@ def fetch_picks(
     return resolved
 
 
+def generate_candidates(
+    run: Run,
+    beat: Beat,
+    prompt: str | None,
+    *,
+    count: int = 3,
+    model: str | None = None,
+    log: Log = _noop,
+) -> list[Path]:
+    """Draw several options for one shot, for a human to choose between."""
+    import hashlib
+
+    from .generate import DEFAULT_MODEL, build_prompt
+    from .generate import generate_candidates as draw
+
+    text = prompt or build_prompt(beat.visual.intent)
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
+    directory = run.broll_dir / "candidates"
+    directory.mkdir(parents=True, exist_ok=True)
+
+    log(f"beat {beat.id}: drawing {count} candidates — {text[:60]}...")
+    paths = draw(text, directory, f"beat-{beat.id}-{digest}", count=count,
+                 model=model or DEFAULT_MODEL, log=log)
+    (directory / f"beat-{beat.id}-{digest}.txt").write_text(text, encoding="utf-8")
+    return paths
+
+
 def generate_shot(
-    run: Run, beat: Beat, prompt: str | None = None, *, log: Log = _noop
+    run: Run, beat: Beat, prompt: str | None = None, *, variant: str | None = None,
+    model: str | None = None, log: Log = _noop
 ) -> Path:
     """Generate this beat's b-roll rather than sourcing it.
 
@@ -172,7 +200,7 @@ def generate_shot(
     """
     import hashlib
 
-    from .generate import build_prompt, generate_still
+    from .generate import DEFAULT_MODEL, build_prompt, generate_still
 
     text = prompt or build_prompt(beat.visual.intent)
 
@@ -180,11 +208,22 @@ def generate_shot(
     # shots, and indexing by position means editing a prompt silently returns
     # the image the old one produced.
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
+
+    # A chosen candidate wins: it was picked by eye from several draws.
+    if variant:
+        chosen = run.broll_dir / "candidates" / f"beat-{beat.id}-{digest}-{variant}.jpg"
+        if not chosen.exists():
+            raise FileNotFoundError(
+                f"beat {beat.id}: candidate '{variant}' not found at {chosen}. "
+                "Run `quinn-video candidates` first, then choose one."
+            )
+        return chosen
+
     dest = run.broll_dir / f"generated-beat-{beat.id}-{digest}.jpg"
     if dest.exists() and dest.stat().st_size > 0:
         return dest
     log(f"beat {beat.id}: generating — {text[:70]}...")
-    result = generate_still(text, dest)
+    result = generate_still(text, dest, model=model or DEFAULT_MODEL)
     log(f"beat {beat.id}: generated in {result.seconds:.1f}s (${result.cost:.3f})")
 
     # Kept beside the image so a reviewer can see what was asked for, and

@@ -80,6 +80,12 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--engine", default="avatar_iii", help="cheapest engine by default")
     probe.add_argument("--keep", help="where to save the probe render")
 
+    cands = with_run(sub.add_parser(
+        "candidates", help="draw several options per generated shot, to choose between"))
+    cands.add_argument("--count", type=int, default=3)
+    cands.add_argument("--beat", type=int, help="only this beat")
+    cands.add_argument("--model", help="override the image model")
+
     with_run(sub.add_parser("verify", help="pair every shot with the words spoken over it"))
     with_run(sub.add_parser("grade", help="score the finished video and write a scorecard"))
     with_run(sub.add_parser("status", help="show what a run has produced so far"))
@@ -240,6 +246,8 @@ def _dispatch(args: argparse.Namespace) -> int:
                         run,
                         by_id[beat_id],
                         prompt if isinstance(prompt, str) else None,
+                        variant=entry.get("variant"),
+                        model=entry.get("model"),
                         log=_log,
                     )
                     if entry.get("annotate"):
@@ -329,6 +337,39 @@ def _dispatch(args: argparse.Namespace) -> int:
             _log("\n  Pick a different avatar, or render opaque and stage it as a")
             _log("  lower-third panel instead of a cutout.")
         return 0 if result.transparent else 1
+
+    if args.command == "candidates":
+        from . import broll
+
+        run = _resolve_run(args.run)
+        board = run.storyboard()
+        by_id = {b.id: b for b in board.beats}
+        picks = json.loads((run.directory / "picks.json").read_text(encoding="utf-8"))
+
+        made: list[tuple[int, list[Path]]] = []
+        for key, value in picks.items():
+            beat_id = int(key)
+            if args.beat and beat_id != args.beat:
+                continue
+            for entry in value if isinstance(value, list) else [value]:
+                if not entry.get("generate"):
+                    continue
+                prompt = entry["generate"]
+                paths = broll.generate_candidates(
+                    run, by_id[beat_id],
+                    prompt if isinstance(prompt, str) else None,
+                    count=args.count, model=args.model, log=_log,
+                )
+                made.append((beat_id, paths))
+
+        _log("")
+        for beat_id, paths in made:
+            for path in paths:
+                _log(f"  beat {beat_id}  {path.name}")
+        _log("\nLook at every candidate. Reject any where the physical relationship is")
+        _log("wrong — a ladder not touching what it leans on, a limb that does not bend")
+        _log("the way an arm bends. Then set \"variant\": \"b\" on the pick and re-fetch.")
+        return 0
 
     if args.command == "verify":
         from . import pipeline

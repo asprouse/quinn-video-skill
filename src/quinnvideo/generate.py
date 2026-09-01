@@ -170,6 +170,39 @@ def build_prompt(intent: str, extra: str = "", *, subject: str = DEFAULT_SUBJECT
     return " ".join(p for p in parts if p)
 
 
+def generate_candidates(
+    prompt: str,
+    directory: Path,
+    stem: str,
+    *,
+    count: int = 3,
+    model: str = DEFAULT_MODEL,
+    log=lambda _: None,
+) -> list[Path]:
+    """Draw the same prompt several times and keep every frame that passes.
+
+    A single draw is a lottery. Testing one prompt across models and seeds,
+    the same wording produced a ladder correctly resting on a wall, a ladder
+    floating in front of one, and a ladder standing bolt upright. No amount of
+    prompt wording removes that variance -- the fix is to draw a few and
+    choose, which is what a photographer does anyway.
+    """
+    kept: list[Path] = []
+    for index in range(count):
+        letter = chr(ord("a") + index)
+        dest = directory / f"{stem}-{letter}.jpg"
+        if dest.exists() and dest.stat().st_size > 0:
+            kept.append(dest)
+            continue
+        try:
+            generate_still(prompt, dest, model=model, attempts=1)
+            kept.append(dest)
+            log(f"    candidate {letter}: ok")
+        except GenerationError as exc:
+            log(f"    candidate {letter}: rejected — {str(exc).split(chr(46))[0][:70]}")
+    return kept
+
+
 def generate_still(
     prompt: str,
     dest: Path,

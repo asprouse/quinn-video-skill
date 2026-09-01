@@ -105,6 +105,31 @@ fire. "Overreaching", "off balance", "tilting onto two legs" all pass and show
 the same danger. The generator detects the blank frame, retries, and says so
 rather than letting it ship.
 
+**Draw several and choose.** A single draw is a lottery. One prompt, three
+draws, produced a ladder correctly resting on a wall, a ladder floating in
+front of one, and a ladder standing bolt upright. No wording removes that
+variance. `quinn-video candidates --beat 4` draws three; pick one with
+`"variant": "b"` on the pick. This matters more than which model you use.
+
+**Describe the negative space, not the contact points.** Spatial relationships
+are where these models are weakest, and two competing constraints make it
+worse: "top rails pressed against the brickwork" *and* "feet a stride away"
+produced ladders standing bolt upright — the model satisfied the first and
+dropped the second. Naming the shape of the gap instead — "forming an obvious
+triangle of empty space between the ladder, the wall and the ground" — got it
+right three times out of three.
+
+**Models differ on physical plausibility.** On the same contact prompt,
+Seedream 4 placed the ladder against the wall correctly twice out of two;
+flux-pro ultra managed one of two. Ultra holds more detail. Set `"model"` on a
+pick to override per shot.
+
+**Anatomy fails on unusual poses, and no prompt fixes it.** Asking for an arm
+held straight out with a flat palm on a rung returned an arm raised overhead
+with the elbow bent backwards. Common poses — climbing, crouching, carrying,
+reaching up — are reliable. Anything a stock photographer would have to pose
+deliberately is not, and belongs in `diagrams`.
+
 **Generate scenes. Draw procedures.** This is the line that matters, and it was
 found the hard way. An ordinary scene — someone climbing a ladder, someone
 setting its feet down — comes back better than anything in the stock libraries.
