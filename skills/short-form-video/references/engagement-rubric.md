@@ -26,7 +26,7 @@ Sample frames across the video and **look at them**. Then:
 | 8 | **Visual/narration match** | The frame at time *t* shows what is being said at *t* | footage (free) |
 | 9 | **Caption legibility** | Readable against every background it crosses | footage or style (free) |
 | 10 | **Cut rhythm** | No shot over ~4s; cuts land on phrase boundaries | footage (free) |
-| 11 | **Dead air** | No silence over 0.6s that is not doing dramatic work | script (costs credits) |
+| 11 | **Stalls** | No pause far longer than the script's own rhythm | script (costs credits) |
 | 12 | **Avatar staging** | Presenter never covers the subject of the shot or the captions | free |
 | 13 | **On-topic footage** | Zero clips that are merely "adjacent" to the subject | footage (free) |
 | 14 | **No repeated shots** | Every shot is a distinct clip; `grade` checks this | footage (free) |

@@ -9,8 +9,9 @@ a voiceover, word-by-word captions locked to the narration, a fast-cut
 slideshow of on-topic footage, and a scorecard telling you what is still wrong
 with it.
 
-> **Status:** the pipeline is built and tested; the API-backed stages are
-> pending a first live run. See [CHANGELOG.md](CHANGELOG.md).
+> **Status:** working end to end. Proven on two of the brief's three topics —
+> ladder safety and heat safety — from a bare topic to a graded mp4.
+> See [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -68,6 +69,7 @@ uv run quinn-video broll                  # search + cache thumbnails
 uv run quinn-video fetch
 uv run quinn-video avatar                 # costs credits
 uv run quinn-video build
+uv run quinn-video verify                 # every shot beside its narration
 uv run quinn-video grade                  # writes report.html
 uv run quinn-video status                 # what this run has produced
 ```

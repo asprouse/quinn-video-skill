@@ -26,9 +26,21 @@ from .config import HEIGHT, WIDTH
 from .heygen import Word
 from .runs import Run
 
-# A gap longer than this stops feeling like a breath and starts feeling like
-# the video has stalled.
-DEAD_AIR = 0.6
+# A pause only reads as a stall relative to the script's own rhythm. Every
+# sentence ends in a breath, so an absolute threshold near that length flags
+# punctuation rather than pacing -- an earlier 0.6s cutoff reported five
+# findings on a six-sentence script, one per full stop, which is noise.
+# A stall is a gap that is both long outright and out of step with its
+# neighbours.
+STALL_SECONDS = 0.9
+STALL_RATIO = 1.8
+
+# Silence adds up even when no single pause is wrong. But only *deliberate*
+# pauses count: ordinary speech leaves a few hundredths of a second between
+# most words, and totalling those puts any normal read near 40% silent. Gaps
+# below this floor are phonetics, not pacing.
+PAUSE_FLOOR = 0.25
+SILENCE_SHARE = 0.25
 
 MAX_SHOT = 4.0
 
@@ -72,14 +84,33 @@ class Report:
 # --- measurements --------------------------------------------------------
 
 
-def dead_air(words: list[Word]) -> list[tuple[float, float]]:
-    """Silences long enough that the viewer notices the video stopped."""
-    gaps = []
-    for current, following in pairwise(words):
-        gap = following.start - current.end
-        if gap >= DEAD_AIR:
-            gaps.append((current.end, gap))
-    return gaps
+def gaps_between(words: list[Word]) -> list[tuple[float, float]]:
+    """Every silence between consecutive words."""
+    return [
+        (current.end, following.start - current.end)
+        for current, following in pairwise(words)
+        if following.start > current.end
+    ]
+
+
+def stalls(words: list[Word]) -> list[tuple[float, float]]:
+    """Pauses that break the script's own rhythm, not merely its sentences."""
+    gaps = [g for _, g in gaps_between(words) if g > 0.05]
+    if not gaps:
+        return []
+    typical = statistics.median(gaps)
+    return [
+        (at, gap)
+        for at, gap in gaps_between(words)
+        if gap >= STALL_SECONDS and gap >= typical * STALL_RATIO
+    ]
+
+
+def silence_share(words: list[Word], duration: float) -> float:
+    """Share of the runtime given over to deliberate pauses."""
+    if duration <= 0:
+        return 0.0
+    return sum(g for _, g in gaps_between(words) if g >= PAUSE_FLOOR) / duration
 
 
 def wpm_curve(words: list[Word], window: float = 5.0) -> list[tuple[float, float]]:
@@ -194,14 +225,26 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
                 "tighten the script or raise the voice speed",
             ),
         )
-    for at, gap in dead_air(words):
+    for at, gap in stalls(words):
         report.findings.append(
             Finding(
                 "warn",
                 round(at, 2),
-                "dead air",
-                f"{gap:.2f}s of silence",
+                "stall",
+                f"{gap:.2f}s of silence, well past this script's usual pause",
                 "shorten the pause in the script, or let a visual beat carry it",
+            ),
+        )
+
+    share = silence_share(words, duration)
+    if share > SILENCE_SHARE:
+        report.findings.append(
+            Finding(
+                "warn",
+                None,
+                "pacing",
+                f"{share:.0%} of the runtime is silence",
+                "tighten the script, or raise QUINN_VOICE_SPEED, then re-narrate",
             ),
         )
 

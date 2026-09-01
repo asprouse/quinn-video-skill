@@ -6,6 +6,17 @@ All notable changes to this project are documented here. This project follows
 ## [Unreleased]
 
 ### Added
+- Generated b-roll via fal.ai, with candidate selection, defect screening
+  (undersized frames, letterboxing, safety-filter blanks) and a per-run house
+  style so shots read as one shoot.
+- `quinn-video verify` — pairs every shot with the words spoken over it, which
+  is what catches footage that matches its brief but not its narration.
+- `quinn-video candidates` — several draws per shot, chosen by eye.
+- `quinn-video probe` — confirms an avatar supports transparent output before
+  a full render is paid for.
+- Animated 4:1 diagram, and annotation of the rule onto a real photograph.
+- Cost guards: `doctor` reports the wallet and what it affords; the avatar
+  stage refuses a render the balance cannot cover.
 - Installable Claude Code plugin: manifest, marketplace entry, MIT license.
 - `short-form-video` skill with craft references for script writing, the
   engagement rubric, visual language, and API notes.

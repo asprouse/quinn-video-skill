@@ -103,8 +103,7 @@ def test_a_card_beat_should_not_also_get_an_overlay():
         topic="heat safety",
         beats=[
             _beat(1, "First line here."),
-            _beat(2, "Second line here.",
-                  overlay=Overlay(kind="rule", text="20% more each day")),
+            _beat(2, "Second line here.", overlay=Overlay(kind="rule", text="20% more each day")),
         ],
     )
     artwork = {2}
