@@ -253,6 +253,18 @@ def render_ladder_angle(
     return dest
 
 
+def _tick(draw, frm, to, direction) -> None:
+    """A thin extension line carrying a measurement out to its dimension.
+
+    Starts just off the object and runs just past the dimension line, the way
+    a drafted extension line does, so the offset reads as intentional.
+    """
+    fx, fy = frm
+    tx_, ty_ = to
+    draw.line([(fx - direction * 10 * SS, fy), (tx_ - direction * 12 * SS, ty_)],
+              fill=(236, 240, 248, 150), width=2 * SS)
+
+
 def render_ladder_annotation(
     photo: Path,
     dest: Path,
@@ -263,7 +275,7 @@ def render_ladder_annotation(
     ratio: tuple[int, int] = (4, 1),
     fps: int = FPS,
     cues: dict[str, float] | None = None,
-    push: float = 0.05,
+    push: float = 0.03,
 ) -> Path:
     """Annotate a real photograph with the ladder geometry.
 
@@ -282,7 +294,7 @@ def render_ladder_annotation(
 
     up, out = ratio
     cues = cues or {}
-    at_structure = cues.get("structure", 0.15)
+    # No "structure" phase: the photograph supplies the wall and the ground.
     at_ladder = cues.get("ladder", 0.55)
     at_rise = cues.get("rise", 1.25)
     at_run = cues.get("run", 1.70)
@@ -307,7 +319,6 @@ def render_ladder_annotation(
     title = fonts.load(fonts.DISPLAY, 118 * SS)
     label = fonts.load(fonts.DISPLAY, 84 * SS)
     kicker = fonts.load(fonts.CAPTION, 32 * SS)
-    small = fonts.load(fonts.CAPTION, 30 * SS)
 
     # Scale-to-cover once, up front; every frame is a crop of this.
     source = Image.open(photo).convert("RGB")
@@ -341,14 +352,10 @@ def render_ladder_annotation(
                 d.text((96 * SS, 180 * SS), f"{up} : {out}", font=title,
                        fill=(*INK, round(255 * fade)))
 
-            g = _phase(t, at_structure, 0.40)
-            if g > 0.01:
-                span = (corner[0] - bx) * g
-                d.line([(bx, by), (bx + span, by)], fill=(*GROUND, 210), width=5 * SS)
-                w = _phase(t, at_structure + 0.15, 0.40)
-                if w > 0.01:
-                    d.line([(tx, by), (tx, by - (by - ty) * w)],
-                           fill=(*GROUND, 190), width=5 * SS)
+            # Nothing is drawn for the wall or the ground. The photograph has
+            # both already, and an approximated line beside a real one reads
+            # as a misprint -- which is how the first version looked, with a
+            # grey construction line a few pixels off each bold dimension.
 
             trace = _phase(t, at_ladder, 0.60)
             if trace > 0.01:
@@ -360,33 +367,43 @@ def render_ladder_annotation(
                     start, end = (180 - angle, 180) if direction > 0 else (0, angle)
                     d.arc([bx - r, by - r, bx + r, by + r], start=start, end=end,
                           fill=(235, 240, 248, 200), width=4 * SS)
-                    d.text((bx - direction * 176 * SS, by - 78 * SS), f"{angle:.0f}°",
-                           font=small, fill=(235, 240, 248, 220))
+                    # The arc alone. A degrees label has nowhere to sit here:
+                    # inside the triangle it collides with the run dimension,
+                    # outside it disappears behind the ladder's back legs. The
+                    # ratio in the title is the number that matters anyway.
 
             r = _phase(t, at_rise, 0.45)
             if r > 0.01:
-                x = tx - direction * 74 * SS
-                d.line([(x, by), (x, by - (by - ty) * r)], fill=(*HI_VIS[:3], 255), width=5 * SS)
-                d.line([(x - 22 * SS, by), (x + 22 * SS, by)],
+                # Drafting convention: the dimension stands clear of the
+                # object and thin extension lines carry the measurement out to
+                # it. Those ticks are what make the offset read as deliberate
+                # rather than as a second, misaligned pass.
+                x = tx - direction * 132 * SS
+                _tick(d, (tx, ty), (x, ty), direction)
+                _tick(d, (tx, by), (x, by), direction)
+                d.line([(x, by), (x, by - (by - ty) * r)],
                        fill=(*HI_VIS[:3], 255), width=5 * SS)
                 if r > 0.95:
                     _arrow(d, (x, ty), (0, -1), size=22 * SS, colour=(*HI_VIS[:3], 255))
-                    d.text((x - direction * 96 * SS, (by + ty) / 2 - 58 * SS), str(up),
+                    _arrow(d, (x, by), (0, 1), size=22 * SS, colour=(*HI_VIS[:3], 255))
+                    d.text((x - direction * 92 * SS, (by + ty) / 2 - 58 * SS), str(up),
                            font=label, fill=(*HI_VIS[:3], 255))
 
             ru = _phase(t, at_run, 0.45)
             if ru > 0.01:
-                # Above the ground line, not below it: the feet usually sit
-                # near the bottom of the frame and anything drawn under them
-                # runs off the edge.
-                y = by - 54 * SS
+                # On the ground line, inside the triangle the ladder makes
+                # with the wall. That gap is what is being measured, it is
+                # empty in the photograph, and it is the only room near the
+                # feet -- anything below them falls off the frame.
+                y = by - 6 * SS
                 d.line([(corner[0], y), (corner[0] + (bx - corner[0]) * ru, y)],
                        fill=(*HI_VIS[:3], 255), width=5 * SS)
-                d.line([(corner[0], y - 20 * SS), (corner[0], y + 20 * SS)],
-                       fill=(*HI_VIS[:3], 255), width=5 * SS)
                 if ru > 0.95:
-                    _arrow(d, (bx, y), (direction, 0), size=22 * SS, colour=(*HI_VIS[:3], 255))
-                    d.text(((bx + corner[0]) / 2 - 22 * SS, y - 104 * SS), str(out),
+                    _arrow(d, (bx, y), (direction, 0), size=20 * SS,
+                           colour=(*HI_VIS[:3], 255))
+                    _arrow(d, (corner[0], y), (-direction, 0), size=20 * SS,
+                           colour=(*HI_VIS[:3], 255))
+                    d.text(((bx + corner[0]) / 2 - 24 * SS, y - 150 * SS), str(out),
                            font=label, fill=(*HI_VIS[:3], 255))
 
             canvas = Image.alpha_composite(canvas.convert("RGBA"), layer).convert("RGB")
