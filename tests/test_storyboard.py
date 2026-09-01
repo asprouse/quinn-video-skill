@@ -91,3 +91,28 @@ def test_a_generated_diagram_is_named_in_the_manifest():
 def test_slug_is_filesystem_safe():
     assert slug("Heat safety (staying cool!)") == "heat-safety-staying-cool"
     assert slug("///") == "video"
+
+
+def test_a_card_beat_should_not_also_get_an_overlay():
+    """Regression: a beat whose footage is a designed card carried a 'rule'
+    overlay, so the same words were printed twice on the same shot -- once as
+    the card's headline and once as an overlay laid over it."""
+    from quinnvideo.captions import OverlayCue
+
+    board = Storyboard(
+        topic="heat safety",
+        beats=[
+            _beat(1, "First line here."),
+            _beat(2, "Second line here.",
+                  overlay=Overlay(kind="rule", text="20% more each day")),
+        ],
+    )
+    artwork = {2}
+
+    cues = [
+        OverlayCue(start=0.0, end=1.0, text=b.overlay.text, kind=b.overlay.kind)
+        for b in board.beats
+        if b.overlay and b.overlay.kind in ("stat", "label", "rule") and b.id not in artwork
+    ]
+
+    assert cues == []

@@ -139,10 +139,18 @@ def render_overlay(
     cues: list[captions.OverlayCue] = []
     emphasis: list[tuple[float, float, set[str]]] = []
 
+    # Beats whose footage *is* their graphic -- a designed card or a generated
+    # diagram. Their overlay text is already the artwork, so drawing it again
+    # as an overlay prints the same words twice on the same shot.
+    is_artwork = set(run.state().get("generated") or [])
+
     for timing in timings or []:
         beat = timing.beat
-        # A diagram is footage, not an overlay -- it is already the whole shot.
-        if beat.overlay and beat.overlay.kind in ("stat", "label", "rule"):
+        if (
+            beat.overlay
+            and beat.overlay.kind in ("stat", "label", "rule")
+            and beat.id not in is_artwork
+        ):
             cues.append(
                 captions.OverlayCue(
                     start=timing.start + 0.15,

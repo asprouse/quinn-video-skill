@@ -79,10 +79,12 @@ TARGET_SECONDS = max(
 # enough to teach.
 VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 0.8)
 
-# Measured, not assumed. This is what the configured voice actually delivers
-# at VOICE_SPEED, and it is only an estimate for `check` -- the real duration
-# comes back with the narration.
-TARGET_WPM = int(os.environ.get("QUINN_TARGET_WPM") or 198)
+# Measured, not assumed. Two full scripts through the configured voice at
+# VOICE_SPEED came back at 178 and 165 wpm, so 170 is the honest figure; the
+# earlier 198 came from a single short line and made `check` underestimate
+# runtimes by around a fifth. It is only an estimate either way -- the real
+# duration arrives with the narration.
+TARGET_WPM = int(os.environ.get("QUINN_TARGET_WPM") or 170)
 
 
 def words_for(seconds: float = TARGET_SECONDS) -> int:
