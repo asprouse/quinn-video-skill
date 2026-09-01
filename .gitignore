@@ -6,6 +6,7 @@
 # Run artifacts (large binaries, API-cached media)
 runs/
 cache/
+.quinn-cache/
 *.mp4
 *.webm
 *.mp3

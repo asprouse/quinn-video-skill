@@ -11,11 +11,38 @@ from pathlib import Path
 
 # --- Paths ---------------------------------------------------------------
 
+# Where the code and its bundled assets live. Fixed, wherever the package was
+# installed to.
 PKG_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PKG_ROOT.parent.parent
 ASSETS = REPO_ROOT / "assets"
-FONTS = ASSETS / "fonts"
-RUNS = REPO_ROOT / "runs"
+
+# Typefaces are downloaded rather than committed, so an installed plugin
+# arrives without them. They go in a user-level cache: the plugin directory is
+# wiped on every update, and a per-project copy would re-download for each new
+# video. Bundled copies in a development checkout win, so working on the repo
+# needs no cache at all.
+BUNDLED_FONTS = ASSETS / "fonts"
+FONT_CACHE = Path(
+    os.environ.get("QUINN_FONT_DIR") or Path.home() / ".cache" / "quinn-video" / "fonts"
+)
+
+
+def font_dir() -> Path:
+    """Where typefaces are read from: the checkout if present, else the cache."""
+    if BUNDLED_FONTS.exists() and any(BUNDLED_FONTS.glob("*.ttf")):
+        return BUNDLED_FONTS
+    return FONT_CACHE
+
+
+# Where *this user's* work lives, which is a different question. Installed as
+# a plugin the code sits under ~/.claude/plugins, and writing rendered video
+# and API keys in there would be wrong twice over: the user cannot find them,
+# and a reinstall would wipe them. Output belongs beside whatever project the
+# person is standing in.
+WORKSPACE = Path(os.environ.get("QUINN_WORKSPACE") or Path.cwd()).resolve()
+RUNS = WORKSPACE / "runs"
+CACHE = WORKSPACE / ".quinn-cache"
 
 
 # --- Environment ---------------------------------------------------------
@@ -26,10 +53,16 @@ RUNS = REPO_ROOT / "runs"
 def _load_dotenv() -> None:
     """Read .env into os.environ without clobbering real environment vars.
 
+    The workspace copy wins. Installed as a plugin, the package directory is
+    somewhere under ~/.claude that nobody is going to edit, so credentials
+    have to be findable from where the user actually works. The package copy
+    is only a fallback, for running out of a development checkout.
+
     Deliberately minimal: no python-dotenv dependency for a 10-line job.
     """
-    env_file = REPO_ROOT / ".env"
-    if not env_file.exists():
+    candidates = [WORKSPACE / ".env", REPO_ROOT / ".env"]
+    env_file = next((c for c in candidates if c.exists()), None)
+    if env_file is None:
         return
     for raw in env_file.read_text(encoding="utf-8").splitlines():
         line = raw.strip()

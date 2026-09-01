@@ -14,7 +14,7 @@ from pathlib import Path
 
 import httpx
 
-from .config import FONTS
+from .config import FONT_CACHE, font_dir
 
 RAW = "https://raw.githubusercontent.com/google/fonts/main/ofl"
 
@@ -28,7 +28,7 @@ class Face:
 
     @property
     def path(self) -> Path:
-        return FONTS / self.filename
+        return font_dir() / self.filename
 
 
 # Montserrat carries the captions: geometric, wide apertures, and legible at
@@ -50,19 +50,23 @@ FACES = (CAPTION, DISPLAY)
 
 
 def install(force: bool = False) -> int:
-    FONTS.mkdir(parents=True, exist_ok=True)
+    # Always install into the cache. A checkout that already bundles them is
+    # served by font_dir() and never reaches here.
+    FONT_CACHE.mkdir(parents=True, exist_ok=True)
 
     for face in FACES:
-        if face.path.exists() and not force:
+        dest = FONT_CACHE / face.filename
+        if dest.exists() and not force:
             print(f"  ✓ {face.filename} already present")
             continue
         print(f"  → downloading {face.filename} ({face.role})")
         response = httpx.get(face.url, follow_redirects=True, timeout=60.0)
         response.raise_for_status()
-        face.path.write_bytes(response.content)
+        dest.write_bytes(response.content)
         print(f"  ✓ {face.filename} ({len(response.content) // 1024} KB)")
 
-    (FONTS / "LICENSE.md").write_text(
+    print(f"  installed to {FONT_CACHE}")
+    (FONT_CACHE / "LICENSE.md").write_text(
         "Montserrat and Anton are licensed under the SIL Open Font License 1.1.\n"
         "https://openfontlicense.org/\n"
         "Downloaded from https://github.com/google/fonts\n",

@@ -17,25 +17,37 @@ what the narration describes.
 boring has failed. Budget most of your effort on the script and the b-roll
 choices — that is where videos are won.
 
-## Setup check
+## Setup
 
-Run once per session before anything else:
+Do this first, once per session. Every command below runs through the plugin's
+own checkout while leaving the working directory alone, so runs, footage and
+`.env` all land beside the **user's** project rather than inside the plugin:
 
 ```bash
-uv run quinn-video doctor
+export QV="uv run --project ${CLAUDE_PLUGIN_ROOT} quinn-video"
+$QV doctor
 ```
 
-Fix blockers before continuing. Every paid call is downstream of this.
+`doctor` checks ffmpeg, the typefaces, the credentials, and the HeyGen balance.
+Fix blockers before continuing — every paid call is downstream of it.
+
+If credentials are missing, the user needs a `.env` **in their working
+directory** (not in the plugin):
+
+```bash
+cp "${CLAUDE_PLUGIN_ROOT}/.env.example" .env    # then fill in the keys
+$QV fonts                                        # one-off, downloads the typefaces
+```
 
 ## The pipeline
 
-Run from the repository root. Each command caches its output, so re-running is
-cheap and safe — **except** `narrate` and `avatar`, which cost credits.
+Each command caches its output, so re-running is cheap and safe — **except**
+`narrate` and `avatar`, which cost credits.
 
 ### 1. Write the storyboard
 
 ```bash
-uv run quinn-video init "ladder safety"     # prints the run directory
+$QV init "ladder safety"     # prints the run directory
 ```
 
 Write `storyboard.json` into that directory. Read
@@ -48,7 +60,7 @@ Schema: `topic`, `target_seconds`, `hook_variants` (write 3), `chosen_hook`,
 optionally `emphasis` and `overlay`.
 
 ```bash
-uv run quinn-video check     # validates, reports pacing, and lists what will render
+$QV check     # validates, reports pacing, and lists what will render
 ```
 
 `check` prints a **render manifest** — every authored overlay and emphasis term,
@@ -69,7 +81,7 @@ and re-run `check`.
 ### 3. Narration (costs credits)
 
 ```bash
-uv run quinn-video narrate
+$QV narrate
 ```
 
 Produces the audio and word-level timestamps. Those timestamps drive the
@@ -78,7 +90,7 @@ captions, the b-roll cuts, and the avatar lip-sync — one clock for everything.
 ### 4. B-roll: search, then judge
 
 ```bash
-uv run quinn-video broll
+$QV broll
 ```
 
 This searches every beat and caches thumbnails. **It picks nothing.** Now do the
@@ -108,14 +120,14 @@ Write `<run>/picks.json`:
 ```
 
 ```bash
-uv run quinn-video fetch
+$QV fetch
 ```
 
 ### 5. Avatar and build
 
 ```bash
-uv run quinn-video avatar    # costs credits; a few minutes
-uv run quinn-video build
+$QV avatar    # costs credits; a few minutes
+$QV build
 ```
 
 ### 6. Grade the result, then fix it
@@ -123,8 +135,8 @@ uv run quinn-video build
 **This step is not optional. The first render is a draft.**
 
 ```bash
-uv run quinn-video verify   # every shot beside the words spoken over it
-uv run quinn-video grade    # mechanical checks and the scorecard
+$QV verify   # every shot beside the words spoken over it
+$QV grade    # mechanical checks and the scorecard
 ```
 
 **`verify` is the one that catches the failures that matter.** It writes a

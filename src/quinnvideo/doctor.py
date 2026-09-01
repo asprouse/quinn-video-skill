@@ -84,10 +84,11 @@ def check_ffmpeg() -> Iterable[Check]:
 
 
 def check_fonts() -> Iterable[Check]:
-    if not config.FONTS.exists():
-        yield Check("caption font", False, f"{config.FONTS} missing — run `quinn-video fonts`")
+    directory = config.font_dir()
+    if not directory.exists():
+        yield Check("caption font", False, "none found — run `quinn-video fonts`")
         return
-    faces = sorted(p.name for p in config.FONTS.glob("*.ttf"))
+    faces = sorted(p.name for p in directory.glob("*.ttf"))
     yield Check(
         "caption font",
         bool(faces),
@@ -312,7 +313,7 @@ def _avatar_catalogue(scan: int = 4000, ttl_hours: int = 24) -> tuple[list[dict]
 
     from .heygen import HeyGen
 
-    cache = config.REPO_ROOT / "cache" / "avatars.json"
+    cache = config.CACHE / "avatars.json"
     if cache.exists() and (time.time() - cache.stat().st_mtime) < ttl_hours * 3600:
         stored = json.loads(cache.read_text(encoding="utf-8"))
         return stored["mine"], stored["pool"]
