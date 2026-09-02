@@ -100,8 +100,10 @@ def audition(limit: int = 24, *, target: float = TARGET_WPM, log=print) -> list[
 
         readings: list[Reading] = []
         for voice in pool:
-            vid = voice.get("id") or voice.get("voice_id")
-            name = (voice.get("name") or vid)[:28]
+            vid = str(voice.get("id") or voice.get("voice_id") or "")
+            if not vid:
+                continue
+            name = str(voice.get("name") or vid)[:28]
             speed, reading = 1.0, None
             # Two probes: rate is close to linear in speed across this range.
             for _ in range(2):
