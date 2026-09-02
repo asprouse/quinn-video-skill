@@ -8,6 +8,7 @@ minutes into an avatar render is a bad trade.
 
 from __future__ import annotations
 
+import io
 import os
 import shutil
 import subprocess
@@ -342,157 +343,121 @@ def run() -> int:
     return 0
 
 
-def list_avatars(search: str | None = None, *, limit: int = 40) -> int:
-    """Print a shortlist of avatars worth using for a vertical video.
-
-    HeyGen exposes roughly ten thousand avatars, most of them landscape studio
-    presenters that would be cropped to pieces at 9:16. This filters to
-    portrait looks on the newer engines and stops at a readable number, rather
-    than printing a catalogue nobody will read.
-
-    Transparent output additionally needs a matting-trained avatar, and no
-    field advertises that. Newer engines are the best available proxy, so
-    avatar_v and avatar_iv looks are listed first.
-    """
-    mine, pool = _avatar_catalogue()
-
-    def usable(a: dict) -> bool:
-        if a.get("status") not in (None, "completed"):
-            return False
-        return not (search and search.lower() not in (a.get("name") or "").lower())
-
-    def rank(a: dict) -> tuple:
-        engines = a.get("supported_api_engines") or []
-        return (
-            0 if a.get("id") in {m.get("id") for m in mine} else 1,
-            0 if "avatar_v" in engines else 1 if "avatar_iv" in engines else 2,
-            0 if a.get("preferred_orientation") == "portrait" else 1,
-            (a.get("name") or "").lower(),
-        )
-
-    own_ids = {m.get("id") for m in mine}
-    shortlist = sorted((a for a in pool if usable(a)), key=rank)[:limit]
-
-    print(f"\n{len(shortlist)} shown ({len(mine)} on your account)\n")
-    print(f"  {'':2} {'id':<38} {'name':<26} {'orient':<9} {'engines'}")
-    print(f"  {'':2} {'-' * 38} {'-' * 26} {'-' * 9} {'-' * 18}")
-    for avatar in shortlist:
-        engines = ",".join(
-            e.replace("avatar_", "") for e in avatar.get("supported_api_engines") or []
-        )
-        mark = "*" if avatar.get("id") in own_ids else " "
-        print(
-            f"  {mark:2} {(avatar.get('id') or '')[:38]:<38} "
-            f"{(avatar.get('name') or '')[:26]:<26} "
-            f"{(avatar.get('preferred_orientation') or '-'):<9} "
-            f"{engines}"
-        )
-    print("\n  * = on your account. Portrait looks are listed first: they are")
-    print("  natively 1080x1920, so nothing is cropped away at 9:16.")
-    print("  Set QUINN_AVATAR_ID in .env to your pick.\n")
-    return 0
-
-
-# HeyGen labels gender inconsistently across catalogue vintages -- "female"
-# and "Woman" both occur, as do "male" and "Man" -- so a filter that matches
-# the field literally silently drops half the pool.
 _GENDER = {
     "female": "female",
     "woman": "female",
-    "f": "female",
     "male": "male",
     "man": "male",
-    "m": "male",
 }
 
 
 def normalise_gender(value: str | None) -> str | None:
+    """HeyGen labels gender inconsistently across catalogue vintages."""
     return _GENDER.get((value or "").strip().lower())
 
 
-def presenters(
-    *,
-    gender: str | None = None,
-    search: str | None = None,
-    limit: int = 24,
-    sheet: bool = False,
-    use: str | None = None,
-) -> int:
-    """Choose the presenter, without reading the source to find out how.
+HEYGEN_LIBRARY = "https://app.heygen.com/avatars"
 
-    Picking a face is a taste decision and the catalogue is ten thousand
-    entries deep, so this filters it to something viewable, renders the
-    previews as one sheet that can actually be looked at, and writes the
-    choice where the pipeline will find it.
+
+def presenters(target: str | None = None, *, use: str | None = None) -> int:
+    """Choose the presenter from a HeyGen URL.
+
+    There is no browser here, and building one was the wrong instinct. HeyGen's
+    own library has video previews, search and filters that no contact sheet
+    rendered into a terminal can match, and the avatar id sits in the URL. So
+    the user browses there and pastes a link.
+
+    What is left for this to do is the part their UI does not: a library URL
+    names a *person* -- one group, whose looks differ by room and outfit --
+    while a render needs one specific look. Maeve is twenty-five of them, with
+    names like "Therapy Coach 2" that distinguish nothing. That narrowing is
+    what the sheet is for.
     """
     if use:
         return _use_presenter(use)
+    if not target:
+        print(f"\n  Browse the library:  {HEYGEN_LIBRARY}")
+        print("  Then paste the URL:  quinn-video presenters <url>\n")
+        return 0
 
-    mine, pool = _avatar_catalogue()
-    own_ids = {m.get("id") for m in mine}
-    want = normalise_gender(gender)
-    if gender and not want:
-        print(f'unknown gender "{gender}" — use female or male')
+    ident, problem = _group_of(target)
+    if problem:
+        print(problem)
         return 2
 
-    def usable(a: dict) -> bool:
-        if a.get("status") not in (None, "completed"):
-            return False
-        if want and normalise_gender(a.get("gender")) != want:
-            return False
-        return not (search and search.lower() not in (a.get("name") or "").lower())
+    looks = _looks_in(ident or "")
+    if not looks:
+        print(f"no looks found for {ident}")
+        return 2
 
-    def rank(a: dict) -> tuple:
-        engines = a.get("supported_api_engines") or []
-        return (
-            0 if a.get("id") in own_ids else 1,
-            0 if a.get("preferred_orientation") == "portrait" else 1,
-            0 if "avatar_v" in engines else 1 if "avatar_iv" in engines else 2,
-            (a.get("name") or "").lower(),
-        )
+    if len(looks) == 1:
+        # A custom avatar is its own group. Nothing to choose, so choose it.
+        return _use_presenter(looks[0]["id"])
 
-    # One person appears as dozens of looks -- eight angles of the same face
-    # is not a choice. Keep the best-ranked look per group so the list is
-    # distinct people.
-    best: dict[str, dict] = {}
-    for avatar in sorted((a for a in pool if usable(a)), key=rank):
-        key = avatar.get("group_id") or avatar.get("name") or avatar.get("id") or ""
-        best.setdefault(str(key), avatar)
-    shortlist = list(best.values())[:limit]
-    if not shortlist:
-        print("nothing matched. Try dropping --gender or --search.")
-        return 1
+    looks.sort(key=lambda a: (a.get("preferred_orientation") != "portrait", a.get("name") or ""))
+    _remember(looks)
+    person = (looks[0].get("name") or "").split()[0]
+    sheet = _presenter_sheet(looks[:24], f"looks-{person.lower()}")
 
-    label = f"{len(shortlist)} shown"
-    if want:
-        label += f", {want}"
-    print(f"\n{label} ({len(mine)} on your account)\n")
-    print(f"  {'':2} {'#':<4}{'id':<36} {'name':<24} {'sex':<7} {'orient':<9} engines")
-    print(f"  {'':2} {'-' * 3:<4}{'-' * 36} {'-' * 24} {'-' * 7} {'-' * 9} {'-' * 14}")
-    for index, avatar in enumerate(shortlist, 1):
-        engines = ",".join(
-            e.replace("avatar_", "") for e in avatar.get("supported_api_engines") or []
-        )
+    print(f"\n{person} has {len(looks)} looks — they differ by room and outfit,")
+    print("and a render needs one.\n")
+    for index, look in enumerate(looks[:24], 1):
         print(
-            f"  {'*' if avatar.get('id') in own_ids else ' ':2} {index:<4}"
-            f"{(avatar.get('id') or '')[:36]:<36} {(avatar.get('name') or '')[:24]:<24} "
-            f"{(normalise_gender(avatar.get('gender')) or '-'):<7} "
-            f"{(avatar.get('preferred_orientation') or '-'):<9} {engines}"
+            f"  {index:<4}{(look.get('name') or '')[:46]:<48}"
+            f"{look.get('preferred_orientation') or '-'}"
         )
-
-    if sheet:
-        path = _presenter_sheet(shortlist)
-        print(f"\n  sheet: {path}")
-        print("  Look at it before choosing — the names carry no information.")
-
-    print("\n  * = on your account. Portrait looks first: natively 1080x1920,")
-    print("  so nothing is cropped at 9:16.")
-    print("  Choose with:  quinn-video presenters --use <id>\n")
+    print(f"\n  sheet: {sheet}")
+    print("  quinn-video presenters --use <number>\n")
     return 0
 
 
-def _presenter_sheet(avatars: list[dict]) -> Path:
-    """Render the previews as one numbered sheet, matching the b-roll sheets."""
+def _looks_in(group_id: str) -> list[dict]:
+    """Every look belonging to one person.
+
+    Filtering the listing by group is what removed the catalogue scan: the
+    whole library is ten thousand looks and walking it took two minutes, to
+    answer a question the API answers directly.
+    """
+    from .heygen import HeyGen
+
+    with HeyGen() as client:
+        looks = list(client.avatars_in_group(group_id))
+    return [a for a in looks if a.get("status") in (None, "completed")]
+
+
+def _group_of(target: str) -> tuple[str | None, str]:
+    """The group id behind a URL, a look id, or a group id."""
+    import re
+
+    from .heygen import HeyGen
+
+    text = target.strip()
+    if "heygen.com" in text.lower() or text.startswith("http"):
+        found = re.findall(r"[0-9a-f]{32}", text.lower())
+        if not found:
+            return None, f"no avatar id in that URL: {text[:80]}"
+        text = found[0]
+
+    if not re.fullmatch(r"[0-9a-f]{32}", text.lower()):
+        return None, f'"{text[:60]}" is not a HeyGen URL or avatar id'
+
+    ident = text.lower()
+    # A library URL carries the group; a look id resolves directly. Try the
+    # look first, since that also tells us its group for free.
+    with HeyGen() as client:
+        look = client.avatar(ident)
+    return (look.get("group_id") or ident) if look else ident, ""
+
+
+def _presenter_sheet(avatars: list[dict], slug: str = "") -> Path:
+    """Render the previews as one numbered sheet.
+
+    Cells are landscape-shaped and the whole frame is fitted inside them
+    rather than cropped to fill. Cropping was wrong twice over: five of every
+    six avatars in the library are landscape, and taking a portrait-shaped
+    bite out of one showed a slice of empty room with the subject outside the
+    frame entirely. A sheet whose job is "who is this" must show the subject.
+    """
     import math
 
     import httpx
@@ -501,14 +466,34 @@ def _presenter_sheet(avatars: list[dict]) -> Path:
     from . import fonts
     from .config import CACHE
 
-    cols, cw, ch, caption = 6, 240, 320, 30
+    cols, cw, ch, caption = 4, 360, 240, 26
     rows = math.ceil(len(avatars) / cols)
     sheet = Image.new("RGB", (cols * cw, rows * (ch + caption)), (18, 20, 24))
     draw = ImageDraw.Draw(sheet)
-    label = fonts.load(fonts.CAPTION, 18)
+    label = fonts.load(fonts.CAPTION, 17)
 
     thumbs = CACHE / "avatar-previews"
     thumbs.mkdir(parents=True, exist_ok=True)
+
+    def fit(raw: Image.Image) -> Image.Image:
+        """Whole image inside the cell, centred, letterboxed."""
+        scale = min(cw / raw.width, ch / raw.height)
+        small = raw.resize((max(1, round(raw.width * scale)), max(1, round(raw.height * scale))))
+        cell = Image.new("RGB", (cw, ch), (18, 20, 24))
+        cell.paste(small, ((cw - small.width) // 2, (ch - small.height) // 2))
+        return cell
+
+    def shorten(text: str) -> str:
+        """Trim to the cell, measured rather than guessed at a character count.
+
+        The names repeat the person in every look -- "Maeve Therapy Coach 2" --
+        so a fixed truncation runs past the cell and overwrites its neighbour.
+        """
+        if draw.textlength(text, font=label) <= cw - 14:
+            return text
+        while text and draw.textlength(text + "…", font=label) > cw - 14:
+            text = text[:-1]
+        return text.rstrip() + "…"
 
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
         for index, avatar in enumerate(avatars):
@@ -517,33 +502,107 @@ def _presenter_sheet(avatars: list[dict]) -> Path:
             cached = thumbs / f"{avatar.get('id')}.jpg"
             try:
                 if not cached.exists() and url:
-                    cached.write_bytes(client.get(url).content)
+                    # Stored at sheet size, not the 1.4 MB original: the whole
+                    # catalogue at full resolution is two gigabytes.
+                    with Image.open(io.BytesIO(client.get(url).content)) as raw:
+                        fit(raw.convert("RGB")).save(cached, quality=88)
                 with Image.open(cached) as raw:
-                    thumb = raw.convert("RGB")
-                    scale = max(cw / thumb.width, ch / thumb.height)
-                    thumb = thumb.resize((round(thumb.width * scale), round(thumb.height * scale)))
-                    sheet.paste(thumb.crop((0, 0, cw, ch)), (x, y))
+                    sheet.paste(raw.convert("RGB"), (x, y))
             except Exception:
                 draw.text((x + 8, y + 8), "no preview", font=label, fill=(200, 80, 80))
+            draw.rectangle([x, y + ch, x + cw - 1, y + ch + caption - 1], fill=(24, 26, 31))
             draw.text(
-                (x + 6, y + ch + 6),
-                f"{index + 1}. {(avatar.get('name') or '')[:26]}",
+                (x + 7, y + ch + 5),
+                shorten(f"{index + 1}. {avatar.get('name') or ''}"),
                 font=label,
                 fill=(235, 235, 240),
             )
 
-    dest = CACHE / "presenters.jpg"
-    sheet.save(dest, quality=85)
+    # Named for the filter that produced it: browsing female then male looks
+    # otherwise overwrites the first sheet with the second.
+    dest = CACHE / f"presenters{'-' + slug if slug else ''}.jpg"
+    sheet.save(dest, quality=88)
     return dest
 
 
-def _use_presenter(avatar_id: str) -> int:
-    """Write the choice to the workspace .env, where every stage reads it."""
+def _manifest_path() -> Path:
+    from .config import CACHE
+
+    return CACHE / "presenters-last.json"
+
+
+def _remember(shortlist: list[dict]) -> None:
+    import json
+
+    _manifest_path().parent.mkdir(parents=True, exist_ok=True)
+    _manifest_path().write_text(
+        json.dumps(
+            [
+                {
+                    "n": i,
+                    "id": a.get("id"),
+                    "name": a.get("name"),
+                    "gender": normalise_gender(a.get("gender")),
+                    "preview": a.get("preview_image_url"),
+                }
+                for i, a in enumerate(shortlist, 1)
+            ],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _resolve(choice: str) -> tuple[str | None, str]:
+    """Turn a number, a name, an id or a URL into one look id.
+
+    The number is the important one. Nobody reads a 32-character hex string
+    off a contact sheet; the number beside the face is what a person says.
+    """
+    import json
+    import re
+
+    text = choice.strip()
+    if "heygen.com" in text.lower() or text.startswith("http"):
+        found = re.findall(r"[0-9a-f]{32}", text.lower())
+        if not found:
+            return None, f"no avatar id in that URL: {text[:80]}"
+        return found[0], ""
+    if re.fullmatch(r"[0-9a-f]{32}", text.lower()):
+        return text.lower(), ""
+
+    path = _manifest_path()
+    if not path.exists():
+        return None, "paste a HeyGen URL first — there is no list to pick from yet"
+    entries = json.loads(path.read_text(encoding="utf-8"))
+
+    if text.isdigit():
+        match = next((e for e in entries if e["n"] == int(text)), None)
+        if not match:
+            return None, f"there is no {text} in the last list ({len(entries)} shown)"
+        return match["id"], ""
+
+    named = [e for e in entries if (e["name"] or "").lower().startswith(text.lower())]
+    if not named:
+        return None, f'nothing in the last list is called "{text}"'
+    if len({e["id"] for e in named}) > 1:
+        which = ", ".join(f"{e['n']}. {e['name']}" for e in named[:6])
+        return None, f'"{text}" matches several — pick a number: {which}'
+    return named[0]["id"], ""
+
+
+def _use_presenter(choice: str) -> int:
+    """Set the presenter from a number, a name, or an id."""
     from .config import WORKSPACE
     from .heygen import HeyGen
 
+    avatar_id, problem = _resolve(choice)
+    if problem:
+        print(problem)
+        return 2
+
     with HeyGen() as client:
-        avatar = client.avatar(avatar_id)
+        avatar = client.avatar(avatar_id or "")
     if not avatar:
         print(f"no avatar {avatar_id} on this account or in the public library")
         return 2
@@ -554,39 +613,40 @@ def _use_presenter(avatar_id: str) -> int:
     kept.append(f"QUINN_AVATAR_ID={avatar_id}")
     env.write_text("\n".join(kept).strip() + "\n", encoding="utf-8")
 
-    print(f"presenter: {avatar.get('name')} ({normalise_gender(avatar.get('gender')) or '?'})")
-    print(f"  written to {env}")
+    name = avatar.get("name") or avatar_id
+    print(f"\npresenter: {name} ({normalise_gender(avatar.get('gender')) or '?'})")
+
+    # Show who was actually chosen. A name in a terminal is not confirmation
+    # when eight avatars share one, and the whole point of picking a face is
+    # that it was seen.
+    portrait = _save_preview(avatar)
+    if portrait:
+        print(f"  {portrait}")
+    print(f"  saved to {env}")
+
     voice = avatar.get("default_voice_id")
     if voice:
-        print(f"  its default voice is {voice}; `quinn-video audition` ranks the alternatives.")
+        print(f"  its default voice is {voice}; `quinn-video audition` ranks alternatives.\n")
     return 0
 
 
-def _avatar_catalogue(scan: int = 4000, ttl_hours: int = 24) -> tuple[list[dict], list[dict]]:
-    """Fetch (and cache) enough of the avatar catalogue to choose from.
+def _save_preview(avatar: dict) -> Path | None:
+    """Keep the chosen presenter's preview where it can be looked at."""
+    import httpx
 
-    HeyGen paginates fifty at a time and the public library runs to five
-    figures, so a full scan is dozens of round trips. Portrait looks -- the
-    ones that need no cropping at 9:16 -- are scattered deep in it, so we have
-    to go reasonably far in and then keep what we found.
-    """
-    import json
-    import time
+    from .config import CACHE
 
-    from .heygen import HeyGen
-
-    cache = config.CACHE / "avatars.json"
-    if cache.exists() and (time.time() - cache.stat().st_mtime) < ttl_hours * 3600:
-        stored = json.loads(cache.read_text(encoding="utf-8"))
-        return stored["mine"], stored["pool"]
-
-    with HeyGen() as client:
-        mine = client.avatars(ownership="private", max_items=100)
-        pool = list(mine) + client.avatars(ownership="public", max_items=scan)
-
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps({"mine": mine, "pool": pool}), encoding="utf-8")
-    return mine, pool
+    url = avatar.get("preview_image_url")
+    if not url:
+        return None
+    dest = CACHE / "presenter-chosen.jpg"
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+            dest.write_bytes(client.get(url).content)
+    except Exception:
+        return None
+    return dest
 
 
 def list_voices(search: str | None = None, *, limit: int = 40) -> int:

@@ -208,6 +208,16 @@ class HeyGen:
             params["ownership"] = ownership
         return list(self._paginate("/v3/avatars/looks", params, max_items=max_items))
 
+    def avatars_in_group(self, group_id: str) -> list[dict[str, Any]]:
+        """Every look belonging to one avatar group.
+
+        A HeyGen library URL names a group -- one person -- while a render
+        needs a specific look. Filtering the listing server-side answers that
+        directly; walking the whole ten-thousand-look library to find them
+        took two minutes.
+        """
+        return list(self._paginate("/v3/avatars/looks", {"group_id": group_id}))
+
     def avatar(self, avatar_id: str) -> dict[str, Any] | None:
         """Look up one avatar by id, without walking the catalogue."""
         try:

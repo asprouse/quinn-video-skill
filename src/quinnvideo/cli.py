@@ -47,21 +47,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = sub.add_parser("doctor", help="check the toolchain and credentials")
     group = doctor.add_mutually_exclusive_group()
-    group.add_argument("--list-avatars", action="store_true", help="print pickable avatar ids")
     group.add_argument("--list-voices", action="store_true", help="print pickable voice ids")
     doctor.add_argument("--search", help="filter the listing by name")
     doctor.add_argument("--limit", type=int, default=40, help="how many to show")
 
     sub.add_parser("fonts", help="download the bundled caption typefaces")
 
-    pres = sub.add_parser("presenters", help="browse and choose the on-screen presenter")
-    pres.add_argument("--gender", help="female or male")
-    pres.add_argument("--search", help="match on name")
-    pres.add_argument("--limit", type=int, default=24)
+    pres = sub.add_parser("presenters", help="choose the on-screen presenter from a HeyGen URL")
     pres.add_argument(
-        "--sheet", action="store_true", help="render the previews as one image to look at"
+        "target", nargs="?", help="a HeyGen avatar URL (browse at app.heygen.com/avatars)"
     )
-    pres.add_argument("--use", metavar="ID", help="set this avatar for the workspace")
+    pres.add_argument("--use", metavar="N|URL|ID", help="set the presenter, by number or link")
 
     aud = sub.add_parser("audition", help="rank voices by how lively they read, at a matched rate")
     aud.add_argument("--limit", type=int, default=24, help="how many voices to try")
@@ -163,8 +159,6 @@ def main(argv: list[str] | None = None) -> int:
 
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "doctor":
-        if args.list_avatars:
-            return doctor.list_avatars(args.search, limit=args.limit)
         if args.list_voices:
             return doctor.list_voices(args.search, limit=args.limit)
         return doctor.run()
@@ -175,13 +169,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         return install()
 
     if args.command == "presenters":
-        return doctor.presenters(
-            gender=args.gender,
-            search=args.search,
-            limit=args.limit,
-            sheet=args.sheet,
-            use=args.use,
-        )
+        return doctor.presenters(args.target, use=args.use)
 
     if args.command == "audition":
         from .voices import audition

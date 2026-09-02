@@ -127,12 +127,25 @@ Recommend one if you have a view, in a few words. Do not write the script for
 each, do not explain your reasoning at length, and do not pick for them.
 
 The presenter line is one clause because they cannot know it is changeable
-otherwise. If they want a different one:
+otherwise. If they want a different one, **send them to HeyGen's own library**
+and ask for a link — it has video previews and search, which nothing here can
+match:
+
+```
+Browse https://app.heygen.com/avatars and paste me the link for anyone you like.
+```
 
 ```bash
-$QV presenters --gender female --sheet    # look at the sheet before choosing
-$QV presenters --use <id>                 # remembers it for this workspace
+$QV presenters <url>          # narrows a person down to one look
+$QV presenters --use 15       # sets it, by the number printed above
 ```
+
+A library URL names a *person*, not a look — Maeve is 25 rooms and outfits
+with names like "Therapy Coach 2" that distinguish nothing. So `presenters
+<url>` prints the looks and writes a contact sheet. **Open that sheet with
+`open <path>`** — do not describe it back to them, and do not rely on sending
+it as an attachment. The whole point is that they look at it. A custom avatar
+is its own group, so a link to one just sets it with nothing to choose.
 
 ### 2. Write the storyboard
 

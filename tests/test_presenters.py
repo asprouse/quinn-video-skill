@@ -33,17 +33,41 @@ def test_gender_labels_are_normalised(raw, expected):
     assert normalise_gender(raw) == expected
 
 
-def test_the_shortlist_is_distinct_people_not_looks():
-    """One person appears as dozens of looks. Eight angles of the same face is
-    not a choice, so only the best-ranked look per group survives."""
-    pool = [
-        {"id": "a1", "name": "Alexis", "group_id": "g1", "status": "completed"},
-        {"id": "a2", "name": "Alexis", "group_id": "g1", "status": "completed"},
-        {"id": "a3", "name": "Alexis", "group_id": "g1", "status": "completed"},
-        {"id": "b1", "name": "Brianna", "group_id": "g2", "status": "completed"},
-    ]
-    best: dict[str, dict] = {}
-    for avatar in pool:
-        best.setdefault(str(avatar["group_id"]), avatar)
+def test_a_heygen_url_yields_its_avatar_id():
+    """The id sits in the path, with query junk after it."""
+    from quinnvideo.doctor import _resolve
 
-    assert [a["id"] for a in best.values()] == ["a1", "b1"]
+    ident, problem = _resolve(
+        "https://app.heygen.com/avatar/my-avatars/"
+        "f1884bb9341d4704b4b843e273130e1b?returnTo=%2Favatar%2Fmy-avatars"
+    )
+    assert ident == "f1884bb9341d4704b4b843e273130e1b"
+    assert not problem
+
+
+def test_a_url_without_an_id_is_rejected():
+    from quinnvideo.doctor import _resolve
+
+    ident, problem = _resolve("https://app.heygen.com/avatars")
+    assert ident is None
+    assert "no avatar id" in problem
+
+
+def test_a_number_resolves_against_the_last_list(tmp_path, monkeypatch):
+    """Nobody reads a 32-character hex string off a contact sheet; the number
+    beside the face is what a person actually says."""
+    import json
+
+    from quinnvideo import doctor
+
+    manifest = tmp_path / "presenters-last.json"
+    manifest.write_text(
+        json.dumps([{"n": 1, "id": "a" * 32, "name": "Maeve Therapy Coach 1"}]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(doctor, "_manifest_path", lambda: manifest)
+
+    assert doctor._resolve("1")[0] == "a" * 32
+    assert doctor._resolve("99")[1].startswith("there is no 99")
+    assert doctor._resolve("Maeve")[0] == "a" * 32
+    assert "nothing in the last list" in doctor._resolve("Zebediah")[1]

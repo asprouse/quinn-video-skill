@@ -23,13 +23,20 @@ All notable changes to this project are documented here. This project follows
   entirely in reaching a primary source, so the rule is about where an answer
   came from rather than whether one was found. See `docs/claims.md`.
 
-- **`quinn-video presenters`** — browse the avatar catalogue by gender or
-  name, render the previews as one contact sheet to actually look at, and
-  persist a choice with `--use`. Changing the presenter previously meant
-  reading the source to discover the catalogue carried a gender field at all.
-  Gender labels are normalised (HeyGen uses both "female" and "Woman"), and
-  the shortlist is deduplicated by group so it shows distinct people rather
-  than eight angles of one face.
+- **`quinn-video presenters <heygen-url>`** — choose the presenter by pasting
+  a link from HeyGen's own library, which has video previews and search that
+  no terminal contact sheet can match. A library URL names a *person*, and a
+  render needs one of their looks, so the command narrows the group down: it
+  lists them, writes a contact sheet, and `--use <number>` sets it. A custom
+  avatar is its own group and is simply set. Changing the presenter
+  previously meant reading the source to discover the catalogue had a gender
+  field at all.
+
+### Removed
+- **The avatar catalogue scan**, and `doctor --list-avatars` with it. Browsing
+  ten thousand looks in a terminal was a worse version of HeyGen's own
+  library, and the scan took two minutes to answer a question the API answers
+  directly with a `group_id` filter.
 
 ### Changed
 - **The skill is much quieter.** It narrated each stage and reported decisions
