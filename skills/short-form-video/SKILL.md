@@ -31,6 +31,10 @@ $QV doctor
 `doctor` checks ffmpeg, the typefaces, the credentials, and the HeyGen balance.
 Fix blockers before continuing — every paid call is downstream of it.
 
+Every other command also preflights what *it* needs and refuses to start
+otherwise, so a missing key stops the run immediately rather than several
+stages in. If one refuses, it names the fix.
+
 If credentials are missing, the user needs a `.env` **in their working
 directory** (not in the plugin):
 

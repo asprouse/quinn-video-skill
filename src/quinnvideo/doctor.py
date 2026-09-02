@@ -8,6 +8,7 @@ minutes into an avatar render is a bad trade.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from collections.abc import Iterable
@@ -211,6 +212,84 @@ def check_defaults() -> Iterable[Check]:
 
 
 # --- driver --------------------------------------------------------------
+
+
+# --- preflight -----------------------------------------------------------
+
+# What each stage actually needs. Checking only the relevant capability means
+# `build` does not demand a HeyGen key it will never use, and `narrate` does
+# not demand ffmpeg.
+NEEDS: dict[str, tuple[str, ...]] = {
+    "narrate": ("heygen",),
+    "avatar": ("heygen",),
+    "probe": ("heygen",),
+    "overlay": ("ffmpeg", "fonts"),
+    "broll": ("pexels",),
+    "candidates": ("fal",),
+    "build": ("ffmpeg", "fonts"),
+    "grade": ("ffmpeg",),
+    "verify": ("ffmpeg",),
+}
+
+_CAPABILITY_FIX = {
+    "ffmpeg": "install ffmpeg (`brew install ffmpeg`)",
+    "fonts": "run `quinn-video fonts`",
+    "heygen": "set HEYGEN_API_KEY in .env",
+    "pexels": "set PEXELS_API_KEY in .env",
+    "fal": "set FAL_KEY in .env",
+}
+
+
+class NotReadyError(RuntimeError):
+    """A stage was asked to run without what it needs."""
+
+
+def _capability_checks(capability: str, keys: Keys) -> list[Check]:
+    if capability == "ffmpeg":
+        return [c for c in check_ffmpeg() if c.fatal]
+    if capability == "fonts":
+        return list(check_fonts())
+    if capability == "heygen":
+        return [Check("HEYGEN_API_KEY", bool(keys.heygen), "missing")]
+    if capability == "pexels":
+        return [Check("PEXELS_API_KEY", bool(keys.pexels), "missing")]
+    if capability == "fal":
+        return [Check("FAL_KEY", bool(keys.fal), "missing")]
+    return []
+
+
+def preflight(command: str) -> None:
+    """Refuse to start a stage that cannot finish.
+
+    Without this a missing key surfaces as a ConfigError several stages in,
+    and a missing codec as an ffmpeg failure inside a filter graph -- after
+    the expensive calls have already been made. These checks are local and
+    take milliseconds, so there is no reason not to run them every time.
+    """
+    if os.environ.get("QUINN_SKIP_PREFLIGHT"):
+        return
+
+    needs = NEEDS.get(command, ())
+    if not needs:
+        return
+
+    keys = Keys.load()
+    failed: list[tuple[str, Check]] = [
+        (capability, check)
+        for capability in needs
+        for check in _capability_checks(capability, keys)
+        if not check.ok
+    ]
+    if not failed:
+        return
+
+    lines = [f"`{command}` cannot run yet:"]
+    lines += [
+        f"  {FAIL} {check.name:<20} {_CAPABILITY_FIX.get(capability, check.detail)}"
+        for capability, check in failed
+    ]
+    lines.append("\nRun `quinn-video doctor` for the full picture.")
+    raise NotReadyError("\n".join(lines))
 
 
 def run() -> int:

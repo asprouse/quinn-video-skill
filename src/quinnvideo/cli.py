@@ -17,6 +17,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import doctor
 from .config import ConfigError
 
 
@@ -99,7 +100,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        # Every stage states what it needs and stops here if it is missing,
+        # rather than failing partway through with the expensive calls already
+        # made. Set QUINN_SKIP_PREFLIGHT to bypass.
+        doctor.preflight(args.command)
         return _dispatch(args)
+    except doctor.NotReadyError as exc:
+        print(f"\n{exc}\n", file=sys.stderr)
+        return 2
     except ConfigError as exc:
         print(f"\n\033[31mconfiguration error\033[0m: {exc}\n", file=sys.stderr)
         return 2
@@ -113,8 +121,6 @@ def main(argv: list[str] | None = None) -> int:
 
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "doctor":
-        from . import doctor
-
         if args.list_avatars:
             return doctor.list_avatars(args.search, limit=args.limit)
         if args.list_voices:
