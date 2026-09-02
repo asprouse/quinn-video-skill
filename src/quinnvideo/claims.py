@@ -257,11 +257,9 @@ def check_sources(board: Storyboard, *, log=lambda _: None) -> list[Issue]:
     from . import cfr
 
     issues: list[Issue] = []
-    checked = 0
 
     for claim in board.claims:
         for citation in cfr.parse_citations(claim.source):
-            checked += 1
             try:
                 head, paras = cfr.section(citation, log=log)
             except cfr.CFRError as error:
@@ -292,6 +290,4 @@ def check_sources(board: Storyboard, *, log=lambda _: None) -> list[Issue]:
             for para in shown[:6]:
                 log(f"    {para.text[:300]}")
 
-    if not checked:
-        log("no CFR citations in this ledger to check.")
     return issues

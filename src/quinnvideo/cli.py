@@ -285,16 +285,26 @@ def _dispatch(args: argparse.Namespace) -> int:
 
         run = _resolve_run(args.run)
         board = run.storyboard()
+        from . import cfr as cfr_module
+
+        cited = sum(len(cfr_module.parse_citations(c.source)) for c in board.claims)
+        if not cited:
+            _log(
+                "No CFR citations in this ledger. That is not a pass — this checks "
+                "regulations, and says nothing about any other kind of source."
+            )
+            return 0
+
         issues = claims_module.check_sources(board, log=_log)
         blockers = [i for i in issues if i.severity == "blocker"]
         for issue in issues:
-            _log(f"  [{issue.severity:7}] {issue.detail}")
+            _log(f"\n  [{issue.severity:7}] {issue.detail}")
             _log(f"            {issue.fix}")
         if not issues:
-            _log("every citation in the ledger resolves to real regulatory text.")
+            _log(f"\nall {cited} citation(s) resolve to real regulatory text.")
         _log(
             "\nRetrieval shows what the regulation says. Whether it supports the "
-            "claim is a reading question — read it."
+            "claim is a reading question — read the text above."
         )
         return 2 if blockers else 0
 
