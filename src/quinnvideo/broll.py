@@ -25,7 +25,7 @@ import httpx
 
 from . import graphics
 from .runs import Run
-from .stock import Candidate, Stock
+from .stock import Candidate, Kind, Stock
 from .storyboard import Beat, Storyboard
 
 Log = Callable[[str], None]
@@ -57,7 +57,7 @@ def gather(
 
     with Stock() as stock:
 
-        def search(beat, query: str, kind: str) -> list[Candidate]:
+        def search(beat: Beat, query: str, kind: Kind) -> list[Candidate]:
             try:
                 return stock.search(query, kind, limit=per_query)
             except Exception as exc:
