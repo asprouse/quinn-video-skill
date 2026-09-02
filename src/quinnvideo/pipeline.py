@@ -107,12 +107,10 @@ def submit_avatar(
     minutes of work that does not depend on it. Running them at the same time
     is most of the wall-clock difference in a full build.
     """
+    key = _avatar_key(run, speech)
     existing = run.state().get("avatar_video_id")
-    if (
-        existing
-        and run.state().get("avatar_key") == _avatar_key(run, speech)
-        and not run.has(run.avatar)
-    ):
+    # Only reclaim a queued job if it belongs to *this* audio.
+    if existing and run.state().get("avatar_key") == key and not run.has(run.avatar):
         log(f"avatar: already queued as {existing}")
         return existing
 
