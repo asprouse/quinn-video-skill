@@ -110,7 +110,10 @@ TARGET_SECONDS = max(
 # 258 wpm at speed 1.0, which is auctioneer territory and unusable for
 # instruction. 0.8 lands near 198 wpm: quick enough for short-form, slow
 # enough to teach.
-VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 0.8)
+VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 0.85)
+
+# Below this the read drags, whatever the script says.
+SLOW_WPM = 155
 
 # Measured, not assumed. Two full scripts through the configured voice at
 # VOICE_SPEED came back at 178 and 165 wpm, so 170 is the honest figure; the

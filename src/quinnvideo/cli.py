@@ -266,66 +266,81 @@ def _dispatch(args: argparse.Namespace) -> int:
         # Resolve each beat's picks in the order they were written. Grouping
         # by source type instead would silently reorder the cut, putting every
         # generated shot after every stock one regardless of intent.
-        resolved: dict[int, list[Path]] = {}
+        from concurrent.futures import ThreadPoolExecutor
+
         cards: list[int] = []
         ai_beats: set[int] = set()
+        jobs: list[tuple[int, int, dict]] = []
 
         for key, value in picks.items():
             beat_id = int(key)
             entries = value if isinstance(value, list) else [value]
-
-            for entry in entries:
+            for slot, entry in enumerate(entries):
                 if entry.get("card"):
                     cards.append(beat_id)
-                    resolved.setdefault(beat_id, []).append(
+                elif entry.get("generate"):
+                    ai_beats.add(beat_id)
+                jobs.append((beat_id, slot, entry))
+
+        def resolve(job: tuple[int, int, dict]) -> tuple[int, int, list[Path]]:
+            beat_id, slot, entry = job
+            window = spans.get(beat_id, (0.0, 4.0))
+            words = [w for w in speech.words if window[0] <= w.start < window[0] + window[1]]
+            if entry.get("card"):
+                return (
+                    beat_id,
+                    slot,
+                    [
                         broll.fallback_card(
                             run,
                             by_id[beat_id],
-                            duration=spans.get(beat_id, (0.0, 4.0))[1],
-                            start=spans.get(beat_id, (0.0, 4.0))[0],
-                            words=[
-                                w
-                                for w in speech.words
-                                if spans.get(beat_id, (0.0, 4.0))[0]
-                                <= w.start
-                                < sum(spans.get(beat_id, (0.0, 4.0)))
-                            ],
-                            log=_log,
-                        )
-                    )
-                elif entry.get("generate"):
-                    ai_beats.add(beat_id)
-                    prompt = entry["generate"]
-                    shot = broll.generate_shot(
-                        run,
-                        by_id[beat_id],
-                        prompt if isinstance(prompt, str) else None,
-                        variant=entry.get("variant"),
-                        model=entry.get("model"),
-                        log=_log,
-                    )
-                    if entry.get("annotate"):
-                        window = spans.get(beat_id, (0.0, 4.0))
-                        shot = broll.annotate_shot(
-                            run,
-                            by_id[beat_id],
-                            shot,
-                            entry["annotate"],
                             duration=window[1],
                             start=window[0],
-                            words=[
-                                w
-                                for w in speech.words
-                                if window[0] <= w.start < window[0] + window[1]
-                            ],
+                            words=words,
                             log=_log,
                         )
-                        ai_beats.discard(beat_id)
-                        cards.append(beat_id)  # atomic: an animation plays once
-                    resolved.setdefault(beat_id, []).append(shot)
-                else:
-                    fetched = broll.fetch_picks(run, {beat_id: [entry]}, log=_log)
-                    resolved.setdefault(beat_id, []).extend(fetched.get(beat_id, []))
+                    ],
+                )
+            if entry.get("generate"):
+                prompt = entry["generate"]
+                shot = broll.generate_shot(
+                    run,
+                    by_id[beat_id],
+                    prompt if isinstance(prompt, str) else None,
+                    variant=entry.get("variant"),
+                    model=entry.get("model"),
+                    log=_log,
+                )
+                if entry.get("annotate"):
+                    shot = broll.annotate_shot(
+                        run,
+                        by_id[beat_id],
+                        shot,
+                        entry["annotate"],
+                        duration=window[1],
+                        start=window[0],
+                        words=words,
+                        log=_log,
+                    )
+                return beat_id, slot, [shot]
+            return (
+                beat_id,
+                slot,
+                list(broll.fetch_picks(run, {beat_id: [entry]}, log=_log).get(beat_id, [])),
+            )
+
+        # Every shot at once. Generation is ten seconds of waiting apiece, and
+        # a fourteen-shot video spent over two minutes of a run doing them one
+        # after another for no reason.
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            done = list(pool.map(resolve, jobs))
+
+        resolved: dict[int, list[Path]] = {}
+        for beat_id, _slot, paths in sorted(done, key=lambda r: (r[0], r[1])):
+            resolved.setdefault(beat_id, []).extend(paths)
+
+        # An annotated diagram plays once; it must not be split into shots.
+        cards = sorted(set(cards) | {b for b, _s, e in jobs if e.get("annotate")})
 
         run.update_state(
             picks={str(k): [str(p) for p in v] for k, v in sorted(resolved.items())},

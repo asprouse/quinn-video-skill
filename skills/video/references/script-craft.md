@@ -18,13 +18,38 @@ or a bad one.
 
 ## Pacing
 
-- Target **165 wpm**. Short-form narration is faster than conversation; under
-  ~140 wpm it reads as a lecture.
+- Target **165–180 wpm**. Short-form narration is faster than conversation.
+  Below ~155 it reads as lethargic no matter how good the writing is — and
+  that is a delivery problem you can fix for three cents, because re-narrating
+  is nearly free. `narrate` reports the rate it achieved; if it comes in slow,
+  raise `QUINN_VOICE_SPEED` and run it again before spending on the avatar.
 - 45s ≈ **125 words**. That is the whole budget. It is less than it sounds.
 - `quinn-video check` reports the estimate. Fix the length before paying for
   audio — you cannot trim it afterwards.
 - Vary sentence length. A run of same-length sentences flattens into drone.
   Short. Short. Then a longer one that carries the actual explanation. Short.
+
+## Say what it is before you say what is interesting about it
+
+A hook that violates an expectation only lands if the viewer knows whose
+expectation is being violated. "On paper, these two made the exact same power"
+is a good sentence attached to nothing — three seconds in, the viewer does not
+know what *these* are, so there is no expectation to violate yet.
+
+**Name the subject in the first sentence.** Not a preamble about it — the
+subject itself, inside the hook:
+
+- Not "On paper, these two made the exact same power." → **"A Supra and a
+  Skyline GT-R made the exact same power on paper. Both were lying."**
+- Not "It kills more people than you would think." → **"Ladders kill more
+  people than falls from height."**
+
+This matters most for comparisons, where the whole idea is a relationship
+between two named things. If the topic is "X vs Y", both names belong in the
+first line.
+
+**Test:** read the first sentence alone, cold. If someone could not say what
+the video is about, it is not a hook yet.
 
 ## Hooks
 

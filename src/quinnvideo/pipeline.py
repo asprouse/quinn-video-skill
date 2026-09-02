@@ -15,7 +15,7 @@ from pathlib import Path
 from . import captions, compose, ff
 from .align import BeatTiming, align, normalise
 from .compose import Composition, Segment
-from .config import VOICE_SPEED, require
+from .config import SLOW_WPM, VOICE_SPEED, require
 from .heygen import HeyGen, HeyGenError, Speech, download, estimate_cost
 from .runs import Run
 from .storyboard import Storyboard
@@ -57,7 +57,15 @@ def narrate(
 
     run.speech_path.write_text(json.dumps(speech.to_dict(), indent=2), encoding="utf-8")
     download(speech.audio_url, run.audio)
-    log(f"narration: {speech.duration:.1f}s, {len(speech.words)} words timed")
+    rate = len(speech.words) / speech.duration * 60 if speech.duration else 0
+    log(f"narration: {speech.duration:.1f}s, {len(speech.words)} words, {rate:.0f} wpm")
+    if rate < SLOW_WPM:
+        log(
+            f"narration: {rate:.0f} wpm is slow for short-form — it will feel "
+            f"lethargic. Raise QUINN_VOICE_SPEED (now {speed}) and re-run "
+            "`narrate --force`; it costs about three cents and must happen "
+            "before the avatar render."
+        )
     return speech
 
 
