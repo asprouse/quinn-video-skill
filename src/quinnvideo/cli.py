@@ -191,6 +191,26 @@ def _dispatch(args: argparse.Namespace) -> int:
             _log("\nwill render:")
             for note in manifest:
                 _log(f"  {note}")
+
+        from . import claims as claims_module
+
+        issues = claims_module.audit(board)
+        blockers = [i for i in issues if i.severity == "blocker"]
+        if issues:
+            _log("\nclaims:")
+            for issue in issues:
+                _log(f"  [{issue.severity:7}] {issue.detail}")
+                _log(f"            {issue.fix}")
+        elif board.claims:
+            _log(f"\nclaims: {len(board.claims)} declared, all accounted for")
+
+        if blockers:
+            _log(
+                "\nThe script asserts something the ledger does not cover. "
+                "Nothing here checks whether a claim is true — the ledger is "
+                "what puts it in front of a person who can."
+            )
+            return 2
         return 0
 
     if args.command == "plan":

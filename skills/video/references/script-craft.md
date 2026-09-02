@@ -161,6 +161,12 @@ the footage gets judged against.
 These videos teach people how not to get hurt. Accuracy is not a nice-to-have.
 
 - Give the real number, or no number. Never invent a statistic.
+- Every assertion goes in `claims[]` with its provenance, and `check` blocks
+  on one that does not. Note the pull this section creates: "give the real
+  number" plus a rubric that rewards punchy specificity selects for confident
+  round figures, which is exactly where a fabricated one hides. The ledger is
+  the counterweight — if you cannot say where a number came from, mark it
+  `unverified` and hedge it, or cut it.
 - Where a rule comes from a standard, state the rule correctly (the 4-to-1
   ladder ratio, three points of contact, etc.).
 - Do not show the unsafe act as the last thing on screen. End on the correct

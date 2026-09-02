@@ -76,8 +76,8 @@ targets there are the difference between a video people watch and one they
 swipe past.
 
 Schema: `topic`, `target_seconds`, `hook_variants` (write 3), `chosen_hook`,
-`beats[]`. Each beat needs `narration`, `visual.intent`, `visual.queries`, and
-optionally `visual.prompt`, `emphasis` and `overlay`.
+`beats[]`, `claims[]`. Each beat needs `narration`, `visual.intent`,
+`visual.queries`, and optionally `visual.prompt`, `emphasis` and `overlay`.
 
 `visual.prompt` is where a generation prompt belongs — not `picks.json`, which
 is a record of one run's choices. A prompt kept only there is lost the moment
@@ -95,6 +95,50 @@ spoken words.
 
 `check` tells you if the script is too long or short. Fix it now — the word
 count is what sets the runtime, and you cannot trim it after paying for audio.
+
+**`check` also blocks on any assertion missing from the claims ledger.** Write
+`claims[]` as you write the script, not afterwards — see *Claims* below.
+
+### 1b. The claims ledger
+
+Nothing in this pipeline checks whether the script is **true**. Every other
+check is mechanical: duration, sync, black frames, whether footage matches the
+beat. A wrong number in a safety video is worse than a dull one, so every
+factual assertion goes in `claims[]` with where it came from:
+
+```json
+{ "beat": 2,
+  "text": "A load at arm's length puts roughly ten times its weight through the lower back",
+  "status": "estimate",
+  "source": "Lever-arm biomechanics; the NIOSH lifting equation treats horizontal distance as a primary multiplier.",
+  "note": "~10x is the standard teaching figure. The real multiplier varies with posture and build, which is why the line says 'roughly'." }
+```
+
+`status` is the honest one, not the flattering one:
+
+| status | means |
+|---|---|
+| `established` | documented in a standard, regulation or published dataset — **requires a `source`** |
+| `contested` | real, but disputed or a simplification of a contested picture |
+| `estimate` | a rule of thumb; **the narration must hedge it** ("roughly", "about") |
+| `unverified` | from your recall, not confirmed against a source |
+| `illustrative` | arithmetic derived from another claim, or a procedural instruction |
+
+Rules:
+
+- **`unverified` is a legitimate answer.** It is what you should use whenever
+  you are working from recall, which is most of the time. Marking a recalled
+  figure `established` to make the check pass is the single worst thing you
+  can do here — it converts "nobody has checked this" into "this is
+  documented", which is exactly the false confidence the ledger exists to
+  prevent.
+- Do not invent a citation. If you cannot name what establishes a claim,
+  that claim is `unverified` and the `source` stays empty.
+- The ledger is a superset of what `check` detects. A claim with no number in
+  it — "squat rather than stoop" — still belongs there if it is contestable.
+  The detector finds numbers; **you** find claims.
+- If a number cannot be sourced and cannot be hedged, cut it. A script with
+  no statistic beats one with a fabricated statistic.
 
 ### 2. Grade the hooks before spending anything
 
@@ -123,7 +167,10 @@ Show them:
 - the script as prose, beat by beat
 - which hook you picked and **why the other two lost** — that is the judgement
   they most often want to overrule
-- any factual call you had to make, especially a number or a standard
+- **the claims ledger**, `unverified` and `contested` entries first. This is
+  the part they are uniquely able to judge and the pipeline cannot check at
+  all. Say plainly that nothing verified these — do not let the ledger's
+  existence imply the claims were checked
 - the estimated cost
 
 Then ask plainly whether to proceed. If they want changes, edit

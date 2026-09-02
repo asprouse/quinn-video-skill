@@ -5,6 +5,17 @@ All notable changes to this project are documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+- **A claims ledger on the storyboard.** Nothing in this pipeline checked
+  whether a script was *true* — every mechanical check was about duration,
+  sync or footage, and the script was taken on trust. Every factual assertion
+  now goes in `claims[]` with a status and a source, `check` blocks on a beat
+  that asserts something the ledger does not mention (numbers spelled out or
+  in digits, ratios, named standards, universals — in overlay text as well as
+  narration), and the ledger prints at the approval gate ahead of the cost.
+  It does not verify anything; it makes assertions visible to the person who
+  can. See `docs/claims.md`.
+
 ### Fixed
 - **Artifacts are cached on their inputs, not their existence.** Every
   expensive stage skipped its work whenever its output file was present,

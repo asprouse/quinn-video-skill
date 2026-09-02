@@ -64,6 +64,37 @@ class Overlay(BaseModel):
     ratio: tuple[int, int] = (4, 1)
 
 
+class Claim(BaseModel):
+    """One factual assertion the script makes, and where it came from.
+
+    The ledger exists because nothing else in this pipeline looks at whether
+    the script is *true*. Every other check is mechanical. Writing the claim
+    down does not verify it, but it moves the assertion out of prose a
+    reviewer has to scan and into a list they can decide about -- before any
+    money is spent, which is the only point where changing it is free.
+    """
+
+    beat: int
+    text: str = Field(..., min_length=8, description="The assertion, in plain words.")
+    status: Literal[
+        # documented in a standard, regulation or published dataset
+        "established",
+        # real, but disputed or a simplification of a contested picture
+        "contested",
+        # a rule of thumb or approximation; the narration must hedge it
+        "estimate",
+        # from recall alone, not confirmed against a source
+        "unverified",
+        # arithmetic derived from another claim, or a procedural instruction
+        "illustrative",
+    ]
+    source: str = Field(
+        "",
+        description="What establishes it: a standard, agency, dataset or publication.",
+    )
+    note: str = Field("", description="Caveat, scope limit, or why it is hedged.")
+
+
 class Beat(BaseModel):
     """One line of narration and the visual that carries it."""
 
@@ -90,6 +121,15 @@ class Storyboard(BaseModel):
         description="Competing openings. Graded on text alone, before anything costs money.",
     )
     beats: list[Beat] = Field(..., min_length=2)
+
+    claims: list[Claim] = Field(
+        default_factory=list,
+        description=(
+            "Every factual assertion in the script, with its provenance. "
+            "`quinn-video check` blocks on a beat that asserts something the "
+            "ledger does not mention."
+        ),
+    )
 
     # Which hook_variant was promoted into beat 1. Authoring provenance, not a
     # render input -- `check` verifies it matches so it cannot drift.
@@ -147,6 +187,20 @@ class Storyboard(BaseModel):
                 lines.append(f'     on screen: {beat.overlay.kind} "{beat.overlay.text}"')
         lines.append("")
 
+        # Before the cost, not after it. The claims are the part a reviewer
+        # is uniquely able to judge and the pipeline cannot check at all, so
+        # they go where they will actually be read.
+        from .claims import audit, ledger
+
+        lines.append(ledger(self))
+        lines.append("")
+
+        issues = audit(self)
+        if issues:
+            lines.append("Claims needing attention")
+            lines += [f"  [{i.severity}] {i.detail}" for i in issues]
+            lines.append("")
+
         notes = [n for n in self.render_manifest() if n.startswith("!")]
         if notes:
             lines.append("Warnings")
@@ -177,6 +231,9 @@ class Storyboard(BaseModel):
             "",
             "Everything above this line was free. Approve the script before continuing,",
             "and say whether the animation is included.",
+            "",
+            "Nothing in this pipeline checks whether a claim is true. The ledger is",
+            "there so you are deciding about a listed assertion, not scanning prose.",
         ]
         return "\n".join(lines)
 
