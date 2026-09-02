@@ -15,7 +15,7 @@ from pathlib import Path
 from . import captions, compose, ff
 from .align import BeatTiming, align, normalise
 from .compose import Composition, Segment
-from .config import MAX_SHOT, MOTION_PROMPT, SLOW_WPM, VOICE_SPEED, require
+from .config import FAST_WPM, MAX_SHOT, MOTION_PROMPT, SLOW_WPM, VOICE_SPEED, require
 from .heygen import HeyGen, HeyGenError, Speech, download, estimate_cost
 from .runs import Run
 from .storyboard import Storyboard
@@ -59,17 +59,37 @@ def narrate(
     download(speech.audio_url, run.audio)
     rate = len(speech.words) / speech.duration * 60 if speech.duration else 0
     log(f"narration: {speech.duration:.1f}s, {len(speech.words)} words, {rate:.0f} wpm")
-    if rate < SLOW_WPM:
+    if not SLOW_WPM <= rate <= FAST_WPM:
+        # It knows the rate it got and the rate it wants, and the two are close
+        # to linear in the speed setting -- so give the number rather than the
+        # advice to fiddle.
+        target = (SLOW_WPM + FAST_WPM) / 2
+        suggested = round(min(2.0, max(0.5, speed * target / rate)), 2)
+        problem = "slow — it will drag" if rate < SLOW_WPM else "fast — it will be hard to follow"
         log(
-            f"narration: {rate:.0f} wpm is slow for short-form — it will feel "
-            f"lethargic. Raise QUINN_VOICE_SPEED (now {speed}) and re-run "
-            "`narrate --force`; it costs about three cents and must happen "
+            f"narration: {rate:.0f} wpm is {problem}. Try "
+            f"QUINN_VOICE_SPEED={suggested} (now {speed}) and re-run "
+            "`narrate --force`. It costs about three cents, and it has to happen "
             "before the avatar render."
         )
     return speech
 
 
 # --- stage 2: avatar -----------------------------------------------------
+
+
+def _avatar_key(run: Run, speech: Speech) -> str:
+    """Idempotency key that changes when the audio does.
+
+    Keyed on the run alone, a re-narration returned the *previous* render from
+    HeyGen's cache: a presenter lip-synced to words that no longer existed,
+    stopping fourteen seconds before the audio did. Nothing failed, and the
+    video shipped.
+    """
+    import hashlib
+
+    stamp = hashlib.sha256(speech.audio_url.encode("utf-8")).hexdigest()[:10]
+    return f"{run.directory.name}-avatar-{stamp}"
 
 
 def submit_avatar(
@@ -88,7 +108,11 @@ def submit_avatar(
     is most of the wall-clock difference in a full build.
     """
     existing = run.state().get("avatar_video_id")
-    if existing and not run.has(run.avatar):
+    if (
+        existing
+        and run.state().get("avatar_key") == _avatar_key(run, speech)
+        and not run.has(run.avatar)
+    ):
         log(f"avatar: already queued as {existing}")
         return existing
 
@@ -108,9 +132,9 @@ def submit_avatar(
             speech.audio_url,
             transparent=transparent,
             motion_prompt=MOTION_PROMPT,
-            idempotency_key=f"{run.directory.name}-avatar",
+            idempotency_key=key,
         )
-    run.update_state(avatar_video_id=video_id)
+    run.update_state(avatar_video_id=video_id, avatar_key=key)
     log(f"avatar: queued {video_id} — carry on with b-roll while it renders")
     return video_id
 
@@ -175,10 +199,9 @@ def render_avatar(
             speech.audio_url,
             transparent=transparent,
             motion_prompt=MOTION_PROMPT,
-            # A run only ever needs one avatar, so keying on the run name makes
-            # a retry after a network blip reuse the render instead of buying
-            # a second one.
-            idempotency_key=f"{run.directory.name}-avatar",
+            # Keyed on the audio so a retry after a network blip reuses the
+            # render, while a re-narration does not.
+            idempotency_key=_avatar_key(run, speech),
         )
         run.update_state(avatar_video_id=video_id)
         log(f"avatar: {video_id}, waiting")

@@ -271,6 +271,7 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
     report.findings.extend(_staging_findings(run, words))
     report.findings.extend(_footage_findings(run))
+    report.findings.extend(_avatar_findings(run, duration))
 
     # The first two seconds decide everything, so they get their own check.
     opening = [f for f in report.frames if f["at"] <= 2.0]
@@ -287,6 +288,34 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
     log(f"grade: {len(report.blockers)} blockers, {len(report.findings)} findings")
     return report
+
+
+def _avatar_findings(run: Run, duration: float) -> list[Finding]:
+    """The presenter must talk for as long as the narration does.
+
+    A stale render -- returned from the provider's cache after the script was
+    re-narrated -- was lip-synced to words that no longer existed and stopped
+    fourteen seconds early. Every frame looked fine on its own, so nothing
+    here caught it. Comparing the two durations does.
+    """
+    if not run.has(run.avatar):
+        return []
+    try:
+        avatar = ff.duration(run.avatar)
+    except Exception:
+        return []
+
+    if abs(avatar - duration) > 0.75:
+        return [
+            Finding(
+                "blocker",
+                None,
+                "avatar out of sync",
+                f"the presenter runs {avatar:.1f}s against {duration:.1f}s of narration",
+                "the render does not belong to this audio — delete avatar.webm and re-run `avatar`",
+            )
+        ]
+    return []
 
 
 def _footage_findings(run: Run) -> list[Finding]:

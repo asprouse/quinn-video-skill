@@ -119,8 +119,16 @@ TARGET_SECONDS = max(
 # something the length of a real script or the number lies to you.
 VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 1.0)
 
-# Below this the read drags, whatever the script says.
-SLOW_WPM = 155
+# The band a short-form read wants to sit in. Below the floor it drags; above
+# the ceiling it stops being punchy and starts being hard to follow, which
+# costs comprehension on a video whose whole job is to teach something.
+#
+# No single speed setting hits this band for every script: the same 1.0 gave
+# 170 wpm on one and 197 on another, because sentence length and punctuation
+# density move the rate as much as the setting does. So narrate measures what
+# it got and says what to change.
+SLOW_WPM = 158
+FAST_WPM = 188
 
 # Passed to HeyGen with every avatar render. Measured against the same audio
 # and the same avatar, this lifts frame-to-frame movement by about a quarter --
