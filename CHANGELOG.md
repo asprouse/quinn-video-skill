@@ -23,6 +23,24 @@ All notable changes to this project are documented here. This project follows
   entirely in reaching a primary source, so the rule is about where an answer
   came from rather than whether one was found. See `docs/claims.md`.
 
+- **`quinn-video presenters`** — browse the avatar catalogue by gender or
+  name, render the previews as one contact sheet to actually look at, and
+  persist a choice with `--use`. Changing the presenter previously meant
+  reading the source to discover the catalogue carried a gender field at all.
+  Gender labels are normalised (HeyGen uses both "female" and "Woman"), and
+  the shortlist is deduplicated by group so it shows distinct people rather
+  than eight angles of one face.
+
+### Changed
+- **The skill is much quieter.** It narrated each stage and reported decisions
+  it had already made — which hook won and why the others lost, words per
+  minute, shot caps, what the stock libraries lacked — none of which the user
+  asked for or could act on. It now asks exactly twice, for the angle and for
+  the script, and works silently between them. Money, failures and unverified
+  claims are still always reported.
+- **The angle is now the user's choice**, offered as two or three one-line
+  options before the script is written, rather than chosen and then explained.
+
 ### Fixed
 - **Artifacts are cached on their inputs, not their existence.** Every
   expensive stage skipped its work whenever its output file was present,

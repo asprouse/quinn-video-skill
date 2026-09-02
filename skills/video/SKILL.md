@@ -17,6 +17,38 @@ what the narration describes.
 boring has failed. Budget most of your effort on the script and the b-roll
 choices — that is where videos are won.
 
+## How to talk to the user
+
+They want a video, not a tour of how it was made. **Default to saying nothing.**
+The tool calls are already visible; narrating them on top is noise.
+
+**Ask exactly twice.** Once for the angle, once for the script. Both are free,
+both are genuinely theirs to decide, and both are cheap to change at that
+moment and expensive later. Everything else is yours — make the call and move
+on.
+
+The rule that catches most of it: **never explain a decision you were entitled
+to make.** If a choice is worth their input, ask *before* deciding. If it
+isn't, do it silently. Reporting a decision you already made gives them
+nothing to act on and reads as either bragging or asking for permission after
+the fact.
+
+So do not tell them about: which hook won or why the others lost, words per
+minute or re-narration, how long shots are allowed to run, what the stock
+libraries did or didn't have, how many candidates you looked at, which file
+you edited, caching, or the shape of any JSON. If a step needed three attempts
+and the third worked, that is one finished step.
+
+Three things always get said, and none of them are process:
+
+- **money**, before it is spent and after
+- **failures** — anything broken, wrong, or that you got wrong yourself
+- **an unverified factual claim** the script leans on
+
+Between the two questions and the finished video, work silently. Report at the
+end in a couple of lines: what it is, what it cost, and anything you would
+still change. Not a build log.
+
 **Work down this file in order, and do not read ahead.** Three reference files
 sit alongside it. Each is named at the one step that needs it, and should be
 read *at* that step, not before. Reading all three up front costs more than
@@ -24,6 +56,10 @@ this whole file and is wasted on any run that stops early — most do, at the
 credentials check two paragraphs below.
 
 ## Setup
+
+When `doctor` passes, say nothing about it and go straight to step 1 — a list
+of things that are fine is not news. When it fails, show only what is missing
+and the exact fix, and stop.
 
 Do this first, once per session. Every command below runs through the plugin's
 own checkout while leaving the working directory alone, so runs, footage and
@@ -64,7 +100,41 @@ $QV fonts                                        # one-off, downloads the typefa
 Each command caches its output, so re-running is cheap and safe — **except**
 `narrate` and `avatar`, which cost credits.
 
-### 1. Write the storyboard
+### 1. Offer angles, and let them pick
+
+Free, and no commands. Read `references/script-craft.md` **now** — the angle
+rules and hook patterns there are the difference between a video people watch
+and one they swipe past.
+
+Then give them **two or three angles on the topic, one sentence each**, and
+ask which they want. An angle is the argument the video makes, not a list of
+things it covers. Make them genuinely different — the obvious take and a
+better one, not three phrasings of the same idea.
+
+```
+Cast iron, three ways:
+
+  1  The soap myth — "never use soap" is the rule everyone has heard, and
+     it's wrong. Correct it, then hand over the routine that actually works.
+  2  It doesn't heat evenly — the opposite of its reputation. It conducts
+     heat badly and just holds a lot of it.
+  3  Seasoning isn't grease — it's polymerised oil, chemically bonded.
+
+Which one? (Presenter is Ray by default — say if you'd rather someone else.)
+```
+
+Recommend one if you have a view, in a few words. Do not write the script for
+each, do not explain your reasoning at length, and do not pick for them.
+
+The presenter line is one clause because they cannot know it is changeable
+otherwise. If they want a different one:
+
+```bash
+$QV presenters --gender female --sheet    # look at the sheet before choosing
+$QV presenters --use <id>                 # remembers it for this workspace
+```
+
+### 2. Write the storyboard
 
 ```bash
 $QV init "ladder safety"     # prints the run directory
@@ -99,7 +169,7 @@ count is what sets the runtime, and you cannot trim it after paying for audio.
 **`check` also blocks on any assertion missing from the claims ledger.** Write
 `claims[]` as you write the script, not afterwards — see *Claims* below.
 
-### 1b. The claims ledger
+### 2b. The claims ledger
 
 Nothing in this pipeline checks whether the script is **true**. Every other
 check is mechanical: duration, sync, black frames, whether footage matches the
@@ -167,46 +237,53 @@ Then:
   URL attached, and the URL is what makes it survive review. Leave it
   `unverified` and say so at the gate.
 
-### 2. Grade the hooks before spending anything
+### 3. Grade the hooks before spending anything
 
 Read `references/engagement-rubric.md` now and score your three hooks against
-it. This is free —
-it is pure text. Pick the winner, make it beat 1's narration, set `chosen_hook`,
-and re-run `check`.
+it. Free — it is pure text. Pick the winner, make it beat 1's narration, set
+`chosen_hook`, and re-run `check`.
 
-### 3. STOP. Show the user the script and get approval.
+Do this **silently**. The user picked the angle; the hook is a craft decision
+inside it, and which variants lost is not something they asked for or can act
+on. If the winner is genuinely a close call, that is still yours to settle.
+
+### 4. Show them the script, and get approval
 
 ```bash
 $QV plan
 ```
 
-**Do not run any further command until the user has said yes.** Everything up
-to here is free; the next command spends their money and several minutes of
-their time. A storyboard is a page of text — it is the cheapest possible place
-to catch a wrong angle, a dull hook, or a factual call they would make
-differently, and the only place where fixing one costs nothing.
+**Do not run any further command until they have said yes.** Everything up to
+here is free; the next command spends their money and several minutes.
 
-Show them:
+This is the second and last question. Keep it to four things:
 
-- **the angle you took, and the one you rejected.** This is the cheapest thing
-  on the list to change and the most expensive to get wrong — redirecting an
-  angle costs a word, rejecting a finished script costs a rewrite
-- the script as prose, beat by beat
-- which hook you picked and **why the other two lost** — that is the judgement
-  they most often want to overrule
-- **the claims ledger**, `unverified` and `contested` entries first. This is
-  the part they are uniquely able to judge and the pipeline cannot check at
-  all. Say plainly that nothing verified these — do not let the ledger's
-  existence imply the claims were checked
-- the estimated cost
+- **the script as prose**, beat by beat. This is the part they want to read
+  and the part they will want to change a line of
+- **one cost number** for the build. Name the optional animation separately in
+  a clause, not a table
+- **anything the script asserts that nothing has checked** — the `unverified`
+  and `contested` claims, briefly, worst first. Say plainly that nothing
+  verified them, so the ledger's existence does not imply it did. If every
+  claim is derived or sourced, say nothing here at all
+- **"anything you want changed?"** — invite line edits explicitly, because a
+  script reads as finished and people are reluctant to nitpick one
 
-Then ask plainly whether to proceed. If they want changes, edit
-`storyboard.json` and show `plan` again — still free.
+Leave out the angle you rejected, the hook that lost, the beat count, the
+word count, the estimated words-per-minute, and the run directory. They are
+approving a script, not reviewing a plan.
 
-**The one exception:** if the user has already said to just build it, or asked
+If they want changes, edit `storyboard.json` and show the script again — still
+free, and no need to re-narrate what changed unless they asked something you
+could not do.
+
+**The one exception:** if they have already said to just build it, or asked
 for no interruptions, take that as approval and carry on.
 
-### 4. Narration (costs credits)
+### 5. Narration (costs credits)
+
+**From here to the finished video, work silently.** Speak only for money,
+failure, or a question you genuinely cannot answer yourself.
 
 ```bash
 $QV narrate                # ~$0.02, gives the real duration
@@ -221,7 +298,7 @@ and choosing b-roll takes minutes of work that does not depend on it. Running
 them at the same time is most of the difference between a two-minute build and
 a ten-minute one. Collect it in step 6.
 
-### 5. B-roll: search, then judge
+### 6. B-roll: search, then judge
 
 ```bash
 $QV broll
@@ -268,7 +345,7 @@ Write `<run>/picks.json`:
 $QV fetch
 ```
 
-### 6. Collect the avatar and build
+### 7. Collect the avatar and build
 
 ```bash
 $QV avatar --collect   # waits for the render submitted in step 4
@@ -280,7 +357,7 @@ to the topic, ducked under the narration automatically. Silence between
 sentences is where attention leaks, and a bed is the cheapest thing that fixes
 it. `--mood` steers it — "tense and driving", "warm and steady".
 
-### 7. Grade the result, then fix it
+### 8. Grade the result, then fix it
 
 **This step is not optional. The first render is a draft.**
 
@@ -310,7 +387,22 @@ cannot: **view the sampled frames in `<run>/frames/`** and score against
   cost before doing it.
 
 Repeat until the video would genuinely hold someone's attention. Two or three
-passes is normal.
+passes is normal. Do the passes silently — an intermediate render is not a
+deliverable, and narrating each fix turns craft into a status meeting.
+
+### 9. Hand it over
+
+Send the video, then a couple of lines:
+
+- what it is — topic, length
+- what it cost, and the balance left
+- **anything you got wrong**, plainly, including money wasted on your own
+  mistake. This is the one place to be more forthcoming rather than less
+- the two or three things you would still change, if any
+
+That is the whole report. Not the passes, not the swaps, not the redraws, not
+what the stock libraries were missing. If a fix worked, it is simply part of
+the video now.
 
 ## Cost discipline
 

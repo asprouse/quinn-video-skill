@@ -54,6 +54,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("fonts", help="download the bundled caption typefaces")
 
+    pres = sub.add_parser("presenters", help="browse and choose the on-screen presenter")
+    pres.add_argument("--gender", help="female or male")
+    pres.add_argument("--search", help="match on name")
+    pres.add_argument("--limit", type=int, default=24)
+    pres.add_argument(
+        "--sheet", action="store_true", help="render the previews as one image to look at"
+    )
+    pres.add_argument("--use", metavar="ID", help="set this avatar for the workspace")
+
     aud = sub.add_parser("audition", help="rank voices by how lively they read, at a matched rate")
     aud.add_argument("--limit", type=int, default=24, help="how many voices to try")
 
@@ -164,6 +173,15 @@ def _dispatch(args: argparse.Namespace) -> int:
         from .fonts import install
 
         return install()
+
+    if args.command == "presenters":
+        return doctor.presenters(
+            gender=args.gender,
+            search=args.search,
+            limit=args.limit,
+            sheet=args.sheet,
+            use=args.use,
+        )
 
     if args.command == "audition":
         from .voices import audition

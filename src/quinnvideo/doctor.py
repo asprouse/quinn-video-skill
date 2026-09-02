@@ -13,6 +13,7 @@ import shutil
 import subprocess
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 
 from . import config
 from .config import Keys
@@ -389,6 +390,175 @@ def list_avatars(search: str | None = None, *, limit: int = 40) -> int:
     print("\n  * = on your account. Portrait looks are listed first: they are")
     print("  natively 1080x1920, so nothing is cropped away at 9:16.")
     print("  Set QUINN_AVATAR_ID in .env to your pick.\n")
+    return 0
+
+
+# HeyGen labels gender inconsistently across catalogue vintages -- "female"
+# and "Woman" both occur, as do "male" and "Man" -- so a filter that matches
+# the field literally silently drops half the pool.
+_GENDER = {
+    "female": "female",
+    "woman": "female",
+    "f": "female",
+    "male": "male",
+    "man": "male",
+    "m": "male",
+}
+
+
+def normalise_gender(value: str | None) -> str | None:
+    return _GENDER.get((value or "").strip().lower())
+
+
+def presenters(
+    *,
+    gender: str | None = None,
+    search: str | None = None,
+    limit: int = 24,
+    sheet: bool = False,
+    use: str | None = None,
+) -> int:
+    """Choose the presenter, without reading the source to find out how.
+
+    Picking a face is a taste decision and the catalogue is ten thousand
+    entries deep, so this filters it to something viewable, renders the
+    previews as one sheet that can actually be looked at, and writes the
+    choice where the pipeline will find it.
+    """
+    if use:
+        return _use_presenter(use)
+
+    mine, pool = _avatar_catalogue()
+    own_ids = {m.get("id") for m in mine}
+    want = normalise_gender(gender)
+    if gender and not want:
+        print(f'unknown gender "{gender}" — use female or male')
+        return 2
+
+    def usable(a: dict) -> bool:
+        if a.get("status") not in (None, "completed"):
+            return False
+        if want and normalise_gender(a.get("gender")) != want:
+            return False
+        return not (search and search.lower() not in (a.get("name") or "").lower())
+
+    def rank(a: dict) -> tuple:
+        engines = a.get("supported_api_engines") or []
+        return (
+            0 if a.get("id") in own_ids else 1,
+            0 if a.get("preferred_orientation") == "portrait" else 1,
+            0 if "avatar_v" in engines else 1 if "avatar_iv" in engines else 2,
+            (a.get("name") or "").lower(),
+        )
+
+    # One person appears as dozens of looks -- eight angles of the same face
+    # is not a choice. Keep the best-ranked look per group so the list is
+    # distinct people.
+    best: dict[str, dict] = {}
+    for avatar in sorted((a for a in pool if usable(a)), key=rank):
+        key = avatar.get("group_id") or avatar.get("name") or avatar.get("id") or ""
+        best.setdefault(str(key), avatar)
+    shortlist = list(best.values())[:limit]
+    if not shortlist:
+        print("nothing matched. Try dropping --gender or --search.")
+        return 1
+
+    label = f"{len(shortlist)} shown"
+    if want:
+        label += f", {want}"
+    print(f"\n{label} ({len(mine)} on your account)\n")
+    print(f"  {'':2} {'#':<4}{'id':<36} {'name':<24} {'sex':<7} {'orient':<9} engines")
+    print(f"  {'':2} {'-' * 3:<4}{'-' * 36} {'-' * 24} {'-' * 7} {'-' * 9} {'-' * 14}")
+    for index, avatar in enumerate(shortlist, 1):
+        engines = ",".join(
+            e.replace("avatar_", "") for e in avatar.get("supported_api_engines") or []
+        )
+        print(
+            f"  {'*' if avatar.get('id') in own_ids else ' ':2} {index:<4}"
+            f"{(avatar.get('id') or '')[:36]:<36} {(avatar.get('name') or '')[:24]:<24} "
+            f"{(normalise_gender(avatar.get('gender')) or '-'):<7} "
+            f"{(avatar.get('preferred_orientation') or '-'):<9} {engines}"
+        )
+
+    if sheet:
+        path = _presenter_sheet(shortlist)
+        print(f"\n  sheet: {path}")
+        print("  Look at it before choosing — the names carry no information.")
+
+    print("\n  * = on your account. Portrait looks first: natively 1080x1920,")
+    print("  so nothing is cropped at 9:16.")
+    print("  Choose with:  quinn-video presenters --use <id>\n")
+    return 0
+
+
+def _presenter_sheet(avatars: list[dict]) -> Path:
+    """Render the previews as one numbered sheet, matching the b-roll sheets."""
+    import math
+
+    import httpx
+    from PIL import Image, ImageDraw
+
+    from . import fonts
+    from .config import CACHE
+
+    cols, cw, ch, caption = 6, 240, 320, 30
+    rows = math.ceil(len(avatars) / cols)
+    sheet = Image.new("RGB", (cols * cw, rows * (ch + caption)), (18, 20, 24))
+    draw = ImageDraw.Draw(sheet)
+    label = fonts.load(fonts.CAPTION, 18)
+
+    thumbs = CACHE / "avatar-previews"
+    thumbs.mkdir(parents=True, exist_ok=True)
+
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        for index, avatar in enumerate(avatars):
+            x, y = (index % cols) * cw, (index // cols) * (ch + caption)
+            url = avatar.get("preview_image_url")
+            cached = thumbs / f"{avatar.get('id')}.jpg"
+            try:
+                if not cached.exists() and url:
+                    cached.write_bytes(client.get(url).content)
+                with Image.open(cached) as raw:
+                    thumb = raw.convert("RGB")
+                    scale = max(cw / thumb.width, ch / thumb.height)
+                    thumb = thumb.resize((round(thumb.width * scale), round(thumb.height * scale)))
+                    sheet.paste(thumb.crop((0, 0, cw, ch)), (x, y))
+            except Exception:
+                draw.text((x + 8, y + 8), "no preview", font=label, fill=(200, 80, 80))
+            draw.text(
+                (x + 6, y + ch + 6),
+                f"{index + 1}. {(avatar.get('name') or '')[:26]}",
+                font=label,
+                fill=(235, 235, 240),
+            )
+
+    dest = CACHE / "presenters.jpg"
+    sheet.save(dest, quality=85)
+    return dest
+
+
+def _use_presenter(avatar_id: str) -> int:
+    """Write the choice to the workspace .env, where every stage reads it."""
+    from .config import WORKSPACE
+    from .heygen import HeyGen
+
+    with HeyGen() as client:
+        avatar = client.avatar(avatar_id)
+    if not avatar:
+        print(f"no avatar {avatar_id} on this account or in the public library")
+        return 2
+
+    env = WORKSPACE / ".env"
+    lines = env.read_text(encoding="utf-8").splitlines() if env.exists() else []
+    kept = [ln for ln in lines if not ln.startswith("QUINN_AVATAR_ID=")]
+    kept.append(f"QUINN_AVATAR_ID={avatar_id}")
+    env.write_text("\n".join(kept).strip() + "\n", encoding="utf-8")
+
+    print(f"presenter: {avatar.get('name')} ({normalise_gender(avatar.get('gender')) or '?'})")
+    print(f"  written to {env}")
+    voice = avatar.get("default_voice_id")
+    if voice:
+        print(f"  its default voice is {voice}; `quinn-video audition` ranks the alternatives.")
     return 0
 
 
