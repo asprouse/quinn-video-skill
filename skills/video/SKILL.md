@@ -215,5 +215,9 @@ set a budget, track it and stop when it is reached rather than at the end.
 
 - `references/script-craft.md` — hooks, pacing, structure. **Read before writing.**
 - `references/engagement-rubric.md` — the grading rubric, used twice.
-- `references/visual-language.md` — b-roll judging, the fallback ladder, captions, staging.
-- `references/api-notes.md` — HeyGen and Pexels specifics, and the traps.
+- `references/visual-language.md` — b-roll judging, the fallback ladder, prompt
+  craft, diagrams.
+
+Everything the CLI handles for itself — API shapes, codecs, caption geometry —
+is documented in the code and in `docs/api-notes.md`, not here. If a failure
+ever needs one of those to understand, the error message is the thing to fix.

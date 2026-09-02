@@ -199,47 +199,17 @@ narration so the rule is spoken while the diagram draws it.
 Everything in the diagram stays above y=1000, clear of the caption line and the
 cornered presenter. When adding new diagrams, keep to that band.
 
-## Captions
+## What you do not control
 
-Handled automatically from the word timestamps — you do not author these. What
-they do, so you can judge them:
+Captions, cut rhythm and avatar staging are all derived from the word
+timestamps and handled for you. You cannot author them, so the reference is
+only what to *do* when one of them goes wrong:
 
-- Phrases of up to 4 words, broken on pauses over 320ms and on sentence ends.
-- Words appear one at a time; the spoken word is accented in high-visibility
-  yellow (`#FFD600`, borrowed from safety vests so the accent feels native).
-- The phrase is laid out once and words appear **in place**, so the line builds
-  left to right the way it is read. Re-centring the visible words on every beat
-  keeps a short line optically centred, but it drags the words already on
-  screen leftwards — and the eye reads that drift as the text arriving right to
-  left, which is backwards for English.
-- Heavy stroke plus drop shadow, because the background is unpredictable.
-- Positioned clear of platform UI: bottom 340px, top 120px, right 200px.
+- **A caption is hard to read** — the fix is almost always the footage, not the
+  caption. Pick a shot with a calmer lower third.
+- **The presenter covers the subject** — if the important thing in a shot sits
+  bottom-right, choose different footage for that beat.
+- **A beat feels static** — give it more than one clip in `picks.json`. Shots
+  are capped at four seconds, so a long beat with a single clip repeats it.
 
-If captions are hard to read in a frame, the fix is usually the *footage* —
-pick a shot with a calmer lower third — not the caption style.
-
-## Avatar staging
-
-The presenter is a transparent WebM composited over the b-roll, so we control
-where it sits.
-
-Default: **full-bleed for the hook, corner for the rest.** The first three
-seconds decide whether anyone watches, and a face at full size is the strongest
-thing available. After that the b-roll is doing the teaching and the presenter
-shrinks to ~42% width, bottom right.
-
-Sizes cut rather than animate. A hard size change lands as an edit; ffmpeg
-cannot smoothly animate a scale anyway.
-
-Watch for the presenter covering the subject of the shot. If the important
-thing in the footage is bottom-right, move the avatar or pick different
-footage.
-
-## Cut rhythm
-
-- No shot longer than **4 seconds**. Longer beats are split across repeats of
-  their own clip, alternating the Ken Burns direction so it does not read as a
-  loop.
-- Cuts land on beat boundaries, which land on phrase boundaries, because
-  everything derives from the same word timestamps.
-- Stills always move. A static frame in a fast-cut sequence reads as a stall.
+The parameters behind all three, and the reasoning for them, live in the code.

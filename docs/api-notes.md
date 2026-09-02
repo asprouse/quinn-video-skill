@@ -1,6 +1,15 @@
 # API notes
 
-Specifics and traps found while building this. Saves rediscovering them.
+Developer reference for the `quinnvideo` package — the shape of the three
+services it talks to, and the traps in each.
+
+**This is not part of the skill.** Every constraint below is enforced in code
+and commented at its call site; the skill drives the CLI and never touches
+these APIs directly. It is here so that someone changing `heygen.py`,
+`stock.py` or `compose.py` does not have to rediscover them.
+
+If a failure here ever reaches the skill as something it must reason about,
+that is a bad error message and should be fixed as one.
 
 ## HeyGen
 
