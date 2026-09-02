@@ -12,7 +12,7 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
-from . import captions, compose, ff
+from . import cache, captions, compose, ff
 from .align import BeatTiming, align, normalise
 from .compose import Composition, Segment
 from .config import FAST_WPM, MAX_SHOT, MOTION_PROMPT, SLOW_WPM, VOICE_SPEED, require
@@ -47,7 +47,8 @@ def narrate(
     voice_id = voice_id or require("QUINN_VOICE_ID", "narration")
     speed = VOICE_SPEED if speed is None else speed
 
-    if run.speech_path.exists() and run.has(run.audio) and not force:
+    key = cache.fingerprint(board.narration, voice_id, speed)
+    if cache.reuse(run.audio, key, force=force) and run.speech_path.exists():
         log("narration: cached")
         return Speech.from_dict(json.loads(run.speech_path.read_text(encoding="utf-8")))
 
@@ -57,6 +58,7 @@ def narrate(
 
     run.speech_path.write_text(json.dumps(speech.to_dict(), indent=2), encoding="utf-8")
     download(speech.audio_url, run.audio)
+    cache.mark(run.audio, key)
     rate = len(speech.words) / speech.duration * 60 if speech.duration else 0
     log(f"narration: {speech.duration:.1f}s, {len(speech.words)} words, {rate:.0f} wpm")
     if not SLOW_WPM <= rate <= FAST_WPM:
@@ -76,6 +78,11 @@ def narrate(
 
 
 # --- stage 2: avatar -----------------------------------------------------
+
+
+def _avatar_fingerprint(speech: Speech, avatar_id: str) -> str:
+    """What the render was made from: this audio, this presenter, this motion."""
+    return cache.fingerprint(speech.audio_url, avatar_id, MOTION_PROMPT)
 
 
 def _avatar_key(run: Run, speech: Speech) -> str:
@@ -107,14 +114,17 @@ def submit_avatar(
     minutes of work that does not depend on it. Running them at the same time
     is most of the wall-clock difference in a full build.
     """
+    avatar_id = avatar_id or require("QUINN_AVATAR_ID", "the presenter")
     key = _avatar_key(run, speech)
+    fp = _avatar_fingerprint(speech, avatar_id)
+
     existing = run.state().get("avatar_video_id")
-    # Only reclaim a queued job if it belongs to *this* audio.
-    if existing and run.state().get("avatar_key") == key and not run.has(run.avatar):
+    # Only reclaim a queued job if it was queued for *this* audio and
+    # presenter, and has not already been collected.
+    if existing and run.state().get("avatar_fp") == fp and not cache.is_fresh(run.avatar, fp):
         log(f"avatar: already queued as {existing}")
         return existing
 
-    avatar_id = avatar_id or require("QUINN_AVATAR_ID", "the presenter")
     with HeyGen() as client:
         cost = estimate_cost(speech.duration, engine)
         balance = client.balance()
@@ -132,14 +142,15 @@ def submit_avatar(
             motion_prompt=MOTION_PROMPT,
             idempotency_key=key,
         )
-    run.update_state(avatar_video_id=video_id, avatar_key=key)
+    run.update_state(avatar_video_id=video_id, avatar_fp=fp)
     log(f"avatar: queued {video_id} — carry on with b-roll while it renders")
     return video_id
 
 
 def collect_avatar(run: Run, *, log: Log = _noop) -> Path:
     """Wait for a queued render and download it."""
-    if run.has(run.avatar):
+    fp = run.state().get("avatar_fp")
+    if fp and cache.is_fresh(run.avatar, fp):
         log("avatar: cached")
         return run.avatar
 
@@ -158,6 +169,8 @@ def collect_avatar(run: Run, *, log: Log = _noop) -> Path:
         info = client.wait_for_video(video_id, on_poll=note)
 
     download(info["video_url"], run.avatar)
+    if fp:
+        cache.mark(run.avatar, fp)
     log(f"avatar: downloaded ({run.avatar.stat().st_size / 1e6:.1f} MB)")
     return run.avatar
 
@@ -175,7 +188,8 @@ def render_avatar(
     """Render the presenter, lip-synced to the narration we already have."""
     avatar_id = avatar_id or require("QUINN_AVATAR_ID", "the presenter")
 
-    if run.has(run.avatar) and not force:
+    key = _avatar_fingerprint(speech, avatar_id)
+    if cache.reuse(run.avatar, key, force=force):
         log("avatar: cached")
         return run.avatar
 
@@ -230,7 +244,15 @@ def render_overlay(
     log: Log = _noop,
 ) -> Path:
     """Draw captions and beat overlays. Free, so it rebuilds on any change."""
-    if run.has(run.overlay) and not force:
+    key = cache.fingerprint(
+        [(w.word, round(w.start, 3), round(w.end, 3)) for w in speech.words],
+        [
+            (t.beat.id, t.beat.emphasis, t.beat.overlay.model_dump() if t.beat.overlay else None)
+            for t in (timings or [])
+        ],
+        round(speech.duration, 3),
+    )
+    if cache.reuse(run.overlay, key, force=force):
         log("overlay: cached")
         return run.overlay
 
@@ -280,6 +302,7 @@ def render_overlay(
         emphasised=emphasised if emphasis else None,
         cues=cues,
     )
+    cache.mark(run.overlay, key)
     log(f"overlay: {run.overlay.stat().st_size / 1e6:.1f} MB")
     return run.overlay
 
@@ -354,13 +377,19 @@ def plan_segments(
 
 def _cut_fingerprint(segments: list[Segment]) -> str:
     """Identifies a cut list: which clip plays, for how long, in what order."""
-    import hashlib
-
-    joined = "|".join(
-        f"{seg.source}:{seg.start:.3f}:{seg.duration:.3f}:{seg.is_still}:{seg.zoom_in}"
-        for seg in segments
+    return cache.fingerprint(
+        [
+            (
+                str(seg.source),
+                round(seg.start, 3),
+                round(seg.duration, 3),
+                seg.is_still,
+                seg.zoom_in,
+                seg.pan,
+            )
+            for seg in segments
+        ]
     )
-    return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
 
 def _segment_beats(segments: list[Segment], picks_index: dict[str, int]) -> list[int]:
@@ -409,14 +438,11 @@ def build(
     # existence meant swapping a shot rebuilt nothing: the finished video
     # silently kept the old footage and only --force fixed it, which is a
     # trap nobody should have to know about.
-    fingerprint = _cut_fingerprint(comp.segments)
-    stamp = run.base.with_suffix(".cut")
-    stale = not stamp.exists() or stamp.read_text(encoding="utf-8") != fingerprint
-
-    if not run.has(run.base) or stale or force:
-        log("compose: building b-roll base" + (" (cut list changed)" if stale else ""))
+    key = _cut_fingerprint(comp.segments)
+    if not cache.reuse(run.base, key, force=force):
+        log("compose: building b-roll base")
         compose.build_base(comp, run.base)
-        stamp.write_text(fingerprint, encoding="utf-8")
+        cache.mark(run.base, key)
 
     log("compose: laying avatar, captions, audio")
     compose.build_final(comp, run.base, run.final)

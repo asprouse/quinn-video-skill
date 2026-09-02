@@ -110,3 +110,48 @@ def test_the_cut_fingerprint_notices_a_swapped_shot():
     assert _cut_fingerprint(a) == _cut_fingerprint(list(a))
     assert _cut_fingerprint(a) != _cut_fingerprint(b)
     assert _cut_fingerprint(a) != _cut_fingerprint(reordered)
+
+
+def test_a_layer_built_from_an_old_script_is_a_blocker(tmp_path, monkeypatch):
+    """Regression: a video shipped with the captions of an earlier draft over
+    the narration of a later one.
+
+    ``overlay.mov`` was cached on existence, so re-narrating rebuilt the audio
+    and the avatar but kept the old caption layer. Every frame looked right on
+    its own and the grader passed it. The layers are all cut from the same
+    word timestamps, so a duration that disagrees with the narration means the
+    layer was built from a different script.
+    """
+    from quinnvideo import grade as grade_module
+    from quinnvideo.grade import _layer_findings
+    from quinnvideo.runs import Run
+
+    run = Run(tmp_path / "run")
+    run.overlay.parent.mkdir(parents=True, exist_ok=True)
+    for path in (run.avatar, run.overlay, run.base):
+        path.write_text("x")
+
+    durations = {run.avatar: 39.1, run.overlay: 25.2, run.base: 38.8}
+    monkeypatch.setattr(grade_module.ff, "duration", lambda p: durations[p])
+
+    findings = _layer_findings(run, 39.08)
+
+    assert [f.severity for f in findings] == ["blocker"]
+    assert "overlay.mov" in findings[0].criterion
+    assert "25.2s against 39.1s" in findings[0].detail
+
+
+def test_layers_that_agree_with_the_narration_pass(tmp_path, monkeypatch):
+    from quinnvideo import grade as grade_module
+    from quinnvideo.grade import _layer_findings
+    from quinnvideo.runs import Run
+
+    run = Run(tmp_path / "run")
+    run.overlay.parent.mkdir(parents=True, exist_ok=True)
+    for path in (run.avatar, run.overlay, run.base):
+        path.write_text("x")
+
+    durations = {run.avatar: 39.09, run.overlay: 39.07, run.base: 38.77}
+    monkeypatch.setattr(grade_module.ff, "duration", lambda p: durations[p])
+
+    assert _layer_findings(run, 39.08) == []

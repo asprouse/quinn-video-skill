@@ -32,6 +32,7 @@ from .runs import Run
 # findings on a six-sentence script, one per full stop, which is noise.
 # A stall is a gap that is both long outright and out of step with its
 # neighbours.
+LAYER_DRIFT = 0.75  # seconds a layer may differ from the narration
 STALL_SECONDS = 0.9
 STALL_RATIO = 1.8
 
@@ -271,7 +272,7 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
     report.findings.extend(_staging_findings(run, words))
     report.findings.extend(_footage_findings(run))
-    report.findings.extend(_avatar_findings(run, duration))
+    report.findings.extend(_layer_findings(run, duration))
 
     # The first two seconds decide everything, so they get their own check.
     opening = [f for f in report.frames if f["at"] <= 2.0]
@@ -290,32 +291,45 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
     return report
 
 
-def _avatar_findings(run: Run, duration: float) -> list[Finding]:
-    """The presenter must talk for as long as the narration does.
+def _layer_findings(run: Run, duration: float) -> list[Finding]:
+    """Every timed layer must run as long as the narration does.
 
-    A stale render -- returned from the provider's cache after the script was
-    re-narrated -- was lip-synced to words that no longer existed and stopped
-    fourteen seconds early. Every frame looked fine on its own, so nothing
-    here caught it. Comparing the two durations does.
+    Two defects shipped this way. A stale avatar render, returned from the
+    provider's cache after the script was re-narrated, was lip-synced to
+    words that no longer existed and stopped fourteen seconds early. Then a
+    stale caption layer put the captions of an earlier draft over the audio
+    of a later one. In both cases every frame looked fine on its own, so
+    nothing else here caught it.
+
+    The layers are all cut from the same word timestamps, so any one of them
+    disagreeing with the narration means it was built from a different script.
+    Comparing durations is a cheap, total check for that.
     """
-    if not run.has(run.avatar):
-        return []
-    try:
-        avatar = ff.duration(run.avatar)
-    except Exception:
-        return []
+    layers = (
+        (run.avatar, "the presenter", "delete avatar.webm and re-run `avatar`"),
+        (run.overlay, "the caption layer", "delete work/overlay.mov and re-run `overlay`"),
+        (run.base, "the b-roll base", "delete work/base.mp4 and re-run `build`"),
+    )
 
-    if abs(avatar - duration) > 0.75:
-        return [
-            Finding(
-                "blocker",
-                None,
-                "avatar out of sync",
-                f"the presenter runs {avatar:.1f}s against {duration:.1f}s of narration",
-                "the render does not belong to this audio — delete avatar.webm and re-run `avatar`",
+    findings: list[Finding] = []
+    for path, what, remedy in layers:
+        if not run.has(path):
+            continue
+        try:
+            actual = ff.duration(path)
+        except Exception:
+            continue
+        if abs(actual - duration) > LAYER_DRIFT:
+            findings.append(
+                Finding(
+                    "blocker",
+                    None,
+                    f"{path.name} out of sync",
+                    f"{what} runs {actual:.1f}s against {duration:.1f}s of narration",
+                    f"this layer was not built from the current script — {remedy}",
+                )
             )
-        ]
-    return []
+    return findings
 
 
 def _footage_findings(run: Run) -> list[Finding]:

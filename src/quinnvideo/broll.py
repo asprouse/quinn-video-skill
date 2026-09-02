@@ -23,7 +23,7 @@ from typing import Any
 
 import httpx
 
-from . import graphics
+from . import cache, graphics
 from .runs import Run
 from .stock import Candidate, Kind, Stock
 from .storyboard import Beat, Storyboard
@@ -348,12 +348,18 @@ def animate_shot(
     """
     from .animate import animate, motion_prompt
 
+    prompt = motion_prompt(beat.visual.intent, spec if isinstance(spec, str) else "")
+
+    # The still's name pins the image, but the clip also depends on the motion
+    # asked for and how long it runs -- and rewriting a beat's visual.intent
+    # to fix a bad shot is a normal part of using this. Key on all three.
     dest = run.broll_dir / f"animated-{still.stem}.mp4"
-    if dest.exists() and dest.stat().st_size > 0:
+    key = cache.fingerprint(still.name, prompt, round(seconds, 1))
+    if cache.is_fresh(dest, key):
         return dest
 
-    prompt = motion_prompt(beat.visual.intent, spec if isinstance(spec, str) else "")
     result = animate(still, dest, prompt, seconds=seconds, log=log)
+    cache.mark(dest, key)
     log(f"beat {beat.id}: animated {still.name} -> {result.seconds}s in {result.took:.0f}s")
     return dest
 
@@ -395,12 +401,16 @@ def annotate_shot(
     if not expected:
         log(f'beat {beat.id}: anchors are not pinned — add "for_image": "{stamp}"')
 
-    dest = run.broll_dir / f"annotated-beat-{beat.id}-{stamp}.mp4"
-    if dest.exists() and dest.stat().st_size > 0:
-        return dest
-
     cues = _diagram_cues(beat, words or [], start, duration)
     ratio = tuple(spec.get("ratio", [4, 1]))
+
+    dest = run.broll_dir / f"annotated-beat-{beat.id}-{stamp}.mp4"
+    key = cache.fingerprint(
+        stamp, ratio, spec.get("base"), spec.get("top"), round(duration, 3), sorted(cues.items())
+    )
+    if cache.is_fresh(dest, key):
+        return dest
+
     log(f"beat {beat.id}: annotating {photo.name} with the {ratio[0]}:{ratio[1]} rule")
     render_ladder_annotation(
         photo,
@@ -411,6 +421,7 @@ def annotate_shot(
         ratio=ratio,
         cues=cues,
     )
+    cache.mark(dest, key)
     return dest
 
 
@@ -428,14 +439,16 @@ def fallback_card(
         from .diagrams import render_ladder_angle
 
         dest = run.broll_dir / f"diagram-beat-{beat.id}.mp4"
-        if not (dest.exists() and dest.stat().st_size > 0):
-            cues = _diagram_cues(beat, words or [], start, duration)
+        cues = _diagram_cues(beat, words or [], start, duration)
+        key = cache.fingerprint(beat.overlay.ratio, round(duration, 3), sorted(cues.items()))
+        if not cache.is_fresh(dest, key):
             log(
                 f"beat {beat.id}: drawing the {beat.overlay.ratio[0]}:"
                 f"{beat.overlay.ratio[1]} diagram ({duration:.1f}s), "
                 + ", ".join(f"{k} @{v:.2f}s" for k, v in sorted(cues.items()))
             )
             render_ladder_angle(dest, duration, ratio=beat.overlay.ratio, cues=cues)
+            cache.mark(dest, key)
         return dest
 
     dest = run.broll_dir / f"card-beat-{beat.id}.jpg"

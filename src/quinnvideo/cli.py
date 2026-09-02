@@ -17,7 +17,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import doctor
+from . import cache, doctor
 from .config import ConfigError
 
 
@@ -398,13 +398,13 @@ def _dispatch(args: argparse.Namespace) -> int:
             from .music import bed_prompt, generate_bed
 
             music = run.directory / "music.wav"
-            if not run.has(music):
-                generate_bed(
-                    bed_prompt(board.topic, args.mood),
-                    music,
-                    seconds=speech.duration,
-                    log=_log,
-                )
+            prompt = bed_prompt(board.topic, args.mood)
+            # A bed generated for a shorter script gets looped to fill the new
+            # one, which is audible. Re-generate when the narration changes.
+            key = cache.fingerprint(prompt, round(speech.duration, 1))
+            if not cache.is_fresh(music, key):
+                generate_bed(prompt, music, seconds=speech.duration, log=_log)
+                cache.mark(music, key)
         elif args.music:
             music = Path(args.music)
 

@@ -9,7 +9,6 @@ so a crash in compositing -- or a deliberate revision from the grading loop
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -117,22 +116,6 @@ class Run:
         current.update(values)
         self.state_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
         return current
-
-    # --- caching -----------------------------------------------------------
-
-    def cached(self, name: str, produce: Callable[[], T], *, force: bool = False) -> T:
-        """Run ``produce`` once and remember its JSON-serialisable result.
-
-        For stages whose output is a file, check the file instead -- this is
-        for the metadata ones, like the speech response.
-        """
-        store = self.directory / "work" / f"{name}.json"
-        if store.exists() and not force:
-            return json.loads(store.read_text(encoding="utf-8"))  # type: ignore[return-value]
-        value = produce()
-        store.parent.mkdir(parents=True, exist_ok=True)
-        store.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        return value
 
     def has(self, path: Path) -> bool:
         return path.exists() and path.stat().st_size > 0
