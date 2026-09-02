@@ -167,7 +167,14 @@ These videos teach people how not to get hurt. Accuracy is not a nice-to-have.
   round figures, which is exactly where a fabricated one hides. The ledger is
   the counterweight — if you cannot say where a number came from, mark it
   `unverified` and hedge it, or cut it.
-- Where a rule comes from a standard, state the rule correctly (the 4-to-1
-  ladder ratio, three points of contact, etc.).
+- Where a rule comes from a standard, state the rule correctly, and check
+  that the standard is the one you think it is. Worked example: the 4-to-1
+  ladder ratio really is regulatory text -- 29 CFR 1926.1053(b)(5)(i), "the
+  horizontal distance from the top support to the foot of the ladder is
+  approximately one-quarter of the working length". "Three points of contact"
+  is taught alongside it and reads like it comes from the same place, but it
+  does not appear in that standard at all. Attaching a real citation to a
+  claim it does not support is the failure mode to watch for -- it is more
+  convincing than an invented statistic and harder to spot.
 - Do not show the unsafe act as the last thing on screen. End on the correct
   behaviour — that is what gets remembered.
