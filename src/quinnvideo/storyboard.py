@@ -164,13 +164,15 @@ class Storyboard(BaseModel):
         avatar = estimate_cost(seconds)
         stills = shots * 0.06
         animated = 3 * 0.45  # the hook, the payoff, and one in between
+        music = 0.05
 
         lines += [
             "Cost to go on from here",
             f"  narration   ~${narration:.2f}",
             f"  avatar      ~${avatar:.2f}   ({seconds:.0f}s of render)",
             f"  footage     ~${stills:.2f}   (~{shots} shots, if stock cannot serve them)",
-            f"  ---         ~${narration + avatar + stills:.2f}",
+            f"  music bed   ~${music:.2f}",
+            f"  ---         ~${narration + avatar + stills + music:.2f}",
             f"  animation   ~${animated:.2f}   optional: real motion on 3 shots instead of a pan",
             "",
             "Everything above this line was free. Approve the script before continuing,",

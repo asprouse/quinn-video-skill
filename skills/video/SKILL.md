@@ -198,8 +198,13 @@ $QV fetch
 
 ```bash
 $QV avatar --collect   # waits for the render submitted in step 4
-$QV build
+$QV build --music auto --mood "<a few words on the feel>"
 ```
+
+**Always build with a bed.** `--music auto` generates an instrumental matched
+to the topic, ducked under the narration automatically. Silence between
+sentences is where attention leaks, and a bed is the cheapest thing that fixes
+it. `--mood` steers it — "tense and driving", "warm and steady".
 
 ### 7. Grade the result, then fix it
 

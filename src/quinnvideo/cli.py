@@ -97,7 +97,11 @@ def build_parser() -> argparse.ArgumentParser:
     fetch.add_argument("--picks", help="picks JSON (default: <run>/picks.json)")
 
     build = with_run(sub.add_parser("build", help="composite the finished video"))
-    build.add_argument("--music", help="optional music bed")
+    build.add_argument(
+        "--music",
+        help="music bed: a path, or 'auto' to generate one from the topic",
+    )
+    build.add_argument("--mood", default="", help="extra direction for an auto bed")
 
     probe = sub.add_parser(
         "probe", help="test whether an avatar supports transparent output (~$0.22)"
@@ -389,6 +393,21 @@ def _dispatch(args: argparse.Namespace) -> int:
                 "no footage selected for this run — run `quinn-video broll` then `fetch`"
             )
 
+        music: Path | None = None
+        if args.music == "auto":
+            from .music import bed_prompt, generate_bed
+
+            music = run.directory / "music.wav"
+            if not run.has(music):
+                generate_bed(
+                    bed_prompt(board.topic, args.mood),
+                    music,
+                    seconds=speech.duration,
+                    log=_log,
+                )
+        elif args.music:
+            music = Path(args.music)
+
         segments = pipeline.plan_segments(
             timings, picks, atomic=set(run.state().get("generated") or []), log=_log
         )
@@ -401,7 +420,7 @@ def _dispatch(args: argparse.Namespace) -> int:
                 for beat_id, paths in (run.state().get("picks") or {}).items()
                 for path in paths
             },
-            music=Path(args.music) if args.music else None,
+            music=music,
             force=args.force,
             log=_log,
         )
