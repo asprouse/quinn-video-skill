@@ -74,7 +74,11 @@ class Composition:
     overlay: Path | None = None
     music: Path | None = None
     stages: list[Stage] = field(default_factory=list)
-    music_gain: float = 0.16
+    # Where the bed sits, in LUFS, once it has been normalised. An absolute
+    # target rather than a multiplier: generated beds come back slammed to
+    # 0 dBFS with wildly different spectral balance, so a fixed gain means a
+    # different thing every time.
+    music_lufs: float = -32.0
 
 
 # --- pass one: the b-roll base -------------------------------------------
@@ -237,7 +241,7 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     else:
         chains.append(f"{current}null[vout]")
 
-    chains.append(_audio_chain(narration_index, music_index, comp.music_gain))
+    chains.append(_audio_chain(narration_index, music_index, comp.music_lufs))
 
     ff.run(
         [
@@ -334,14 +338,28 @@ def stage_rect(stage: Stage, avatar: Path | None) -> list[int]:
     return [x, HEIGHT - height - floor, width, height]
 
 
-def _audio_chain(narration_index: int, music_index: int | None, gain: float) -> str:
+def _audio_chain(narration_index: int, music_index: int | None, music_lufs: float) -> str:
     """Narration at the front, music ducked underneath, output to broadcast loudness."""
     if music_index is None:
         return f"[{narration_index}:a]loudnorm=I=-14:TP=-1.5:LRA=11[aout]"
 
     return (
         f"[{narration_index}:a]asplit=2[vo][key];"
-        f"[{music_index}:a]volume={gain}[bed];"
+        f"[{music_index}:a]"
+        # Generated beds cannot be trusted to stay out of the way. One came
+        # back with 38% of its energy in 2-6 kHz -- exactly the band that
+        # carries speech intelligibility and sibilance -- and read as hiss
+        # fighting the narrator rather than as music. So carve the voice out
+        # of the bed mechanically instead of asking the model nicely:
+        # drop the sub rumble that muddies without being heard,
+        f"highpass=f=45,"
+        # scoop a wide bell through the presence band the voice occupies,
+        f"equalizer=f=3000:width_type=o:width=2.2:g=-11,"
+        # and lose the top end, which only ever contributes hiss down here.
+        f"lowpass=f=7000,"
+        # Normalise to an absolute level so the bed sits in the same place
+        # whatever the generator hands back.
+        f"loudnorm=I={music_lufs}:TP=-9:LRA=7[bed];"
         # Sidechain the bed against the voice so the music breathes in the
         # gaps instead of sitting at a constant level under the whole track.
         f"[bed][key]sidechaincompress=threshold=0.03:ratio=12:attack=8:release=320[duck];"

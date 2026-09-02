@@ -5,6 +5,33 @@ All notable changes to this project are documented here. This project follows
 
 ## [Unreleased]
 
+### Fixed
+- **Artifacts are cached on their inputs, not their existence.** Every
+  expensive stage skipped its work whenever its output file was present,
+  which is right for a retry and wrong for iterating on a run in place. Two
+  defects shipped this way: a re-narrated script kept the previous avatar
+  (lip-synced to words that no longer existed), and kept the previous caption
+  layer (25.2s of captions over 39.1s of narration). Narration, avatar,
+  captions, b-roll base, music, animated shots, diagrams and annotations now
+  each record a fingerprint of what they were built from and rebuild when it
+  changes. See `docs/caching.md`.
+- **`grade` blocks on any timed layer that disagrees with the narration.**
+  The avatar, captions and b-roll base are all cut from the same word
+  timestamps, so one running to a different length means it was built from a
+  different script. Previously only the avatar was checked, and the stale
+  caption layer graded clean.
+- **The music bed no longer sits in the voice band.** One generated bed came
+  back with 38% of its energy in 2–6 kHz — the band carrying speech
+  intelligibility and sibilance — and read as hiss fighting the narrator.
+  Beds are now high-passed, scooped through the presence band, low-passed and
+  normalised to an absolute level rather than scaled by a fixed gain, since
+  generated beds arrive slammed to 0 dBFS with unpredictable spectral
+  balance. `generate_bed` warns when a bed crowds the voice band, and the
+  prompt it was made from is kept beside it.
+
+### Removed
+- `Run.cached()`, which had no callers and cached on existence.
+
 ### Added
 - Generated b-roll via fal.ai, with candidate selection, defect screening
   (undersized frames, letterboxing, safety-filter blanks) and a per-run house
