@@ -230,7 +230,7 @@ def generate_still(
             return _attempt(prompt, dest, model, width, height, timeout)
         except GenerationError as exc:
             last = exc
-    raise last if last else GenerationError("generation failed")
+    raise last or GenerationError("generation failed")
 
 
 def _attempt(
