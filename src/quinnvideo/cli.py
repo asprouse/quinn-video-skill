@@ -73,6 +73,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan.add_argument("--run")
 
+    sources = sub.add_parser("sources", help="list numeric claims that still need a primary source")
+    sources.add_argument("--run")
+
     with_run(sub.add_parser("narrate", help="synthesise the voiceover (costs credits)"))
     avatar = with_run(sub.add_parser("avatar", help="render the presenter (costs credits)"))
     avatar.add_argument(
@@ -216,6 +219,13 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "plan":
         run = _resolve_run(args.run)
         _log(run.storyboard().review())
+        return 0
+
+    if args.command == "sources":
+        from . import claims as claims_module
+
+        run = _resolve_run(args.run)
+        _log(claims_module.worklist(run.storyboard()))
         return 0
 
     if args.command == "narrate":

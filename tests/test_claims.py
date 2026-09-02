@@ -171,3 +171,112 @@ def test_an_empty_ledger_says_so():
 @pytest.mark.parametrize("text", ["a 40% drop", "it is 12x worse", "30 percent"])
 def test_digit_forms_are_found(text):
     assert assertions(text)
+
+
+# --- provenance quality ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("source", "kind"),
+    [
+        ("https://www.cdc.gov/mmwr/preview/mmwrhtml/mm6316a2.htm", "primary"),
+        ("bls.gov CFOI 2023", "primary"),
+        ("https://pmc.ncbi.nlm.nih.gov/articles/PMC4584774", "primary"),
+        ("a stanford.edu study", "primary"),
+        ("https://en.wikipedia.org/wiki/Nissan_Skyline", "secondary"),
+        ("Wikipedia", "secondary"),
+        ("silodrome.com", "secondary"),
+        ("NIOSH lifting equation", "unattributed"),
+        ("", "unattributed"),
+    ],
+)
+def test_source_quality_is_about_where_not_whether(source, kind):
+    from quinnvideo.claims import source_kind
+
+    assert source_kind(source) == kind
+
+
+def test_a_patent_is_a_filing_not_a_finding():
+    """uspto.gov is a .gov and would otherwise pass as primary. Restricting a
+    biomechanics search to government domains returned mostly patents."""
+    from quinnvideo.claims import source_kind
+
+    assert source_kind("https://image-ppubs.uspto.gov/x/10034810") == "secondary"
+    assert source_kind("https://patents.google.com/patent/US123") == "secondary"
+
+
+def test_wikipedia_followed_to_a_primary_source_counts():
+    """Following an encyclopedia out to its references is the path a reviewer
+    is supposed to take, so it must not be penalised."""
+    from quinnvideo.claims import source_kind
+
+    assert source_kind("Wikipedia, followed to https://www.cdc.gov/mmwr/x.htm") == "primary"
+
+
+def test_established_on_a_secondary_source_blocks():
+    """The laundering guard: a search returning Wikipedia for a claim the
+    model already believed has added a citation and no information, and the
+    citation is what makes it survive review."""
+    board = _board(
+        [_beat(1, "Ladders are useful."), _beat(2, "It won twenty nine races.")],
+        [
+            Claim(
+                beat=2,
+                text="twenty nine wins from twenty nine starts",
+                status="established",
+                source="https://en.wikipedia.org/wiki/Nissan_Skyline_GT-R",
+            )
+        ],
+    )
+    blockers = [i for i in audit(board) if i.severity == "blocker"]
+    assert len(blockers) == 1
+    assert "secondary source" in blockers[0].detail
+
+
+def test_established_on_a_primary_source_passes():
+    board = _board(
+        [_beat(1, "Ladders are useful."), _beat(2, "It killed one hundred and thirteen workers.")],
+        [
+            Claim(
+                beat=2,
+                text="113 work-related ladder fall fatalities",
+                status="established",
+                source="https://www.cdc.gov/mmwr/preview/mmwrhtml/mm6316a2.htm",
+            )
+        ],
+    )
+    assert audit(board) == []
+
+
+def test_the_worklist_only_lists_numeric_claims_needing_a_source():
+    """Narrow on purpose: a number is what the script cannot hedge its way out
+    of and what a primary source can actually settle."""
+    from quinnvideo.claims import worklist
+
+    board = _board(
+        [_beat(1, "Bring it in close."), _beat(2, "roughly ten times its weight")],
+        [
+            Claim(beat=2, text="ten times through the lower back", status="estimate"),
+            Claim(beat=2, text="derived arithmetic", status="illustrative"),
+        ],
+    )
+    listed = worklist(board)
+    assert "ten times through the lower back" in listed
+    assert "derived arithmetic" not in listed
+
+
+def test_the_worklist_goes_quiet_once_sourced():
+    from quinnvideo.claims import worklist
+
+    board = _board(
+        [_beat(1, "Bring it in close."), _beat(2, "roughly ten times its weight")],
+        [
+            Claim(
+                beat=2,
+                text="ten times through the lower back",
+                status="estimate",
+                source="https://www.osha.gov/otm/section-7-ergonomics/chapter-1",
+            )
+        ],
+    )
+    assert "Nothing to check" in worklist(board)

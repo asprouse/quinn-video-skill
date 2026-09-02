@@ -100,6 +100,126 @@ _HEDGES = re.compile(
 )
 
 
+# --- provenance quality -------------------------------------------------------
+#
+# Retrieval only helps when it reaches something the model was not already
+# trained on. Searching the open web for a claim mostly returns the same
+# consensus the model absorbed, re-served with a URL attached -- and the URL
+# makes a shaky claim more persuasive without making it truer.
+#
+# Measured on two real claims from this project. "29 races, 29 wins" for the
+# R32 GT-R returned a Fandom wiki, enthusiast blogs, Wikipedia and the
+# manufacturer's own heritage page: no primary record anywhere, and a
+# confident confirmation that would have promoted the claim to `established`.
+# "How many die from ladder falls" returned CDC MMWR, NIOSH and PMC -- and
+# corrected a real error, since the widely-repeated ~300 deaths covers all
+# settings while work-related falls were 113.
+#
+# The difference is not the search. It is whether a primary source exists and
+# is indexed. So the rule is about *where* an answer came from, not whether
+# one was found.
+
+PRIMARY = frozenset(
+    {
+        "bls.gov",
+        "cdc.gov",
+        "nih.gov",
+        "ncbi.nlm.nih.gov",
+        "nist.gov",
+        "noaa.gov",
+        "weather.gov",
+        "census.gov",
+        "dol.gov",
+        "osha.gov",
+        "epa.gov",
+        "fda.gov",
+        "nhtsa.gov",
+        "faa.gov",
+        "cpsc.gov",
+        "ecfr.gov",
+        "govinfo.gov",
+        "gao.gov",
+        "who.int",
+        "ilo.org",
+        "oecd.org",
+        "europepmc.org",
+        "cochrane.org",
+        "doi.org",
+        "iso.org",
+        "ansi.org",
+        "astm.org",
+        "nfpa.org",
+        "ieee.org",
+    }
+)
+
+# Useful for *finding* a primary source, never for being one. Wikipedia's own
+# policy says as much; the risk here is sharper than usual because it is also
+# training data, so "confirming" a recalled fact against it can be checking
+# the model against its own source.
+NOT_A_SOURCE = frozenset(
+    {
+        "wikipedia",
+        "wikipedia.org",
+        "wikiwand.com",
+        "fandom.com",
+        "reddit",
+        "reddit.com",
+        "quora",
+        "quora.com",
+        "medium.com",
+        "substack.com",
+        "pinterest.com",
+        "answers.com",
+        "chatgpt.com",
+        "claude.ai",
+        # A patent is a filing, not a finding. These are .gov and .com hosts
+        # that would otherwise pass as primary: restricting a biomechanics
+        # search to government domains returned mostly patent applications.
+        "uspto.gov",
+        "patents.google.com",
+    }
+)
+
+_DOMAIN = re.compile(
+    r"https?://(?:www\.)?([a-z0-9.-]+)|\b((?:[a-z0-9-]+\.)+(?:gov|edu|int|org|com|net))\b",
+    re.IGNORECASE,
+)
+
+
+def _domains(text: str) -> list[str]:
+    found = []
+    for match in _DOMAIN.finditer(text):
+        host = (match.group(1) or match.group(2) or "").lower().removeprefix("www.")
+        if host and host not in found:
+            found.append(host)
+    return found
+
+
+def source_kind(source: str) -> str:
+    """Where a claim's source sits: primary, secondary, or unattributed."""
+    lowered = source.lower()
+    hosts = _domains(source)
+    named = [n for n in NOT_A_SOURCE if re.search(rf"\b{re.escape(n)}\b", lowered)]
+
+    def primary(host: str) -> bool:
+        return host.endswith((".gov", ".edu")) or any(
+            host == d or host.endswith("." + d) for d in PRIMARY
+        )
+
+    def excluded(host: str) -> bool:
+        return any(host == n or host.endswith("." + n) for n in NOT_A_SOURCE)
+
+    # An excluded host is checked first and simply does not count towards
+    # primary, rather than condemning the whole source: "Wikipedia, followed
+    # to cdc.gov/..." is exactly the path a reviewer is supposed to take.
+    if any(primary(h) for h in hosts if not excluded(h)):
+        return "primary"
+    if hosts or named:
+        return "secondary"
+    return "unattributed"
+
+
 @dataclass(frozen=True)
 class Issue:
     severity: str  # "blocker" | "warn"
@@ -156,6 +276,21 @@ def audit(board: Storyboard) -> list[Issue]:
                     claim.beat,
                     f"the ledger has a claim on beat {claim.beat}, which does not exist",
                     "fix the beat number in claims[]",
+                )
+            )
+        # A tertiary source cannot establish anything. Blocking this is the
+        # whole point: a search that returns Wikipedia for a claim the model
+        # already believed has added a citation and no information, and the
+        # citation is what makes it survive review.
+        if claim.status == "established" and source_kind(claim.source) == "secondary":
+            issues.append(
+                Issue(
+                    "blocker",
+                    claim.beat,
+                    f'"{claim.text}" is marked established on a secondary source '
+                    f"({', '.join(_domains(claim.source)) or 'an encyclopedia'})",
+                    "follow it to the primary source and cite that, or mark the "
+                    'claim "unverified" — a citation is not provenance',
                 )
             )
         # Saying a claim is established is itself a claim. Name what establishes it.
@@ -243,3 +378,59 @@ def ledger(board: Storyboard) -> str:
         if claim.note.strip():
             lines.append(f"                 note:   {claim.note}")
     return "\n".join(lines)
+
+
+def worklist(board: Storyboard) -> str:
+    """What still needs checking, and where checking it would be worthwhile.
+
+    Deliberately narrow. Only claims carrying a number are listed, because a
+    number is what the script cannot hedge its way out of and what a primary
+    source can actually settle. Everything else is a reading question that a
+    search will answer badly.
+    """
+    by_beat: dict[int, list] = {}
+    for claim in board.claims:
+        by_beat.setdefault(claim.beat, []).append(claim)
+
+    lines: list[str] = []
+    for beat in board.beats:
+        shown = beat.overlay.text if beat.overlay else ""
+        spans = assertions(f"{beat.narration} {shown}".strip())
+        if not spans:
+            continue
+        for claim in by_beat.get(beat.id, []):
+            kind = source_kind(claim.source)
+            if claim.status in {"illustrative", "contested"} or kind == "primary":
+                continue
+            lines.append(
+                f"  beat {beat.id}  [{claim.status}/{kind}]  {claim.text}\n"
+                f"          asserts: {_quote(spans)}"
+            )
+
+    if not lines:
+        return (
+            "Nothing to check: every numeric claim is either derived, already "
+            "on a primary source, or has none to be on."
+        )
+
+    return "\n".join(
+        [
+            "Numeric claims without a primary source:",
+            "",
+            *lines,
+            "",
+            "Search each one restricted to primary domains — WebSearch with",
+            f"  allowed_domains: {sorted(PRIMARY)[:6]} ... (see claims.PRIMARY)",
+            "or the .gov / .edu the topic belongs to.",
+            "",
+            "Rules:",
+            "  - A hit on a primary domain: cite the URL and set the status it",
+            "    supports. Read the scope — a figure covering every setting is",
+            "    the wrong number for a workplace video.",
+            "  - No hit: the claim stays unverified. Hedge it or cut it.",
+            "  - Wikipedia is a lead, never a source. Follow its references out.",
+            "  - Do not search a claim no authority publishes on. A confident",
+            "    answer from enthusiast sites is the model's own belief returned",
+            "    with a URL attached.",
+        ]
+    )

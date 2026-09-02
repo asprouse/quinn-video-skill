@@ -81,3 +81,42 @@ rule raises the bar from passive omission to active invention, and the gate
 shows the source text so a reader can judge it — but a determined
 confabulation passes. Closing it needs retrieval, which is the next step up
 and is not built.
+
+## Checking a number against a source
+
+`quinn-video sources` lists the numeric claims that still lack a primary
+source; the model searches each with `WebSearch(allowed_domains=...)` scoped
+to `.gov`/`.edu` publishers, and `check` blocks a claim marked `established`
+on a secondary one.
+
+### Why domain restriction is the whole mechanism
+
+The model was trained on the web, so open web search is not an independent
+check — its errors are correlated with the model's, and it returns the same
+consensus re-served with a URL. The URL is the problem: it makes a shaky
+claim survive review.
+
+Measured on two real claims from this project:
+
+| | "29 races, 29 wins" (R32 GT-R) | "how many die from ladder falls" |
+|---|---|---|
+| What search returned | Fandom, enthusiast blogs, Wikipedia, the manufacturer's own heritage page | CDC MMWR, NIOSH, PMC, Cal/OSHA |
+| Primary source exists | no | yes |
+| Effect of retrieving | promotes an unverified claim to `established` with a citation | corrects a real error — the famous ~300 covers all settings, work-related was 113 |
+
+The difference is not the search. It is whether a primary source exists and
+is indexed. So the rule is about **where** an answer came from, never whether
+one was found — and a claim with no authority publishing on it stays
+`unverified`, which is the correct end state, not a gap.
+
+### Notes from running it
+
+- `.gov` is coarser than it looks. Restricting a biomechanics search to
+  government domains returned mostly **USPTO patent applications** — a
+  filing is not a finding, so `uspto.gov` and `patents.google.com` are
+  excluded despite being otherwise-passing hosts.
+- Wikipedia followed *out* to a primary reference counts as primary. That is
+  the path a reviewer is supposed to take and must not be penalised.
+- Scope errors are the common real defect, not fabrications. A figure that is
+  correct for one population and wrong for the one on screen will pass every
+  check here; only reading the source catches it.

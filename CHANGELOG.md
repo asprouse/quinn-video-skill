@@ -16,6 +16,13 @@ All notable changes to this project are documented here. This project follows
   It does not verify anything; it makes assertions visible to the person who
   can. See `docs/claims.md`.
 
+- **`quinn-video sources`** — lists the numeric claims that still lack a
+  primary source, for checking with a domain-restricted search, and `check`
+  now blocks a claim marked `established` on a secondary one. Open web search
+  is not an independent check of a model trained on the web; the value is
+  entirely in reaching a primary source, so the rule is about where an answer
+  came from rather than whether one was found. See `docs/claims.md`.
+
 ### Fixed
 - **Artifacts are cached on their inputs, not their existence.** Every
   expensive stage skipped its work whenever its output file was present,

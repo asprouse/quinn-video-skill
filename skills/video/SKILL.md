@@ -138,7 +138,34 @@ Rules:
   it — "squat rather than stoop" — still belongs there if it is contestable.
   The detector finds numbers; **you** find claims.
 - If a number cannot be sourced and cannot be hedged, cut it. A script with
-  no statistic beats one with a fabricated statistic.
+  no statistic beats one with a fabricated statistic. Notice that the best
+  hooks here do not use one — "Wrong question. Ask how far it is from your
+  body." A statistic is decoration you then have to defend.
+
+**Check numbers against a primary source, and only against a primary source.**
+
+```bash
+$QV sources     # lists numeric claims that still lack one
+```
+
+For each claim it lists, run **WebSearch with `allowed_domains`** set to the
+`.gov`/`.edu` bodies that publish on the topic (the command prints the list).
+Then:
+
+- **A hit on a primary domain** — cite the URL and set the status it actually
+  supports. **Read the scope.** The famous "about 300 ladder deaths a year"
+  covers every setting; work-related falls were 113. Same topic, wrong number
+  for a workplace video.
+- **No hit** — the claim stays `unverified`. Hedge it or cut it. That is a
+  successful outcome, not a failed lookup.
+- **Wikipedia is a lead, never a source.** Follow its references out and cite
+  what they cite. `check` blocks a claim marked `established` on a secondary
+  source.
+- **Do not search a claim no authority publishes on.** Searching "29 races, 29
+  wins" returns fan wikis and the manufacturer's own marketing, all agreeing.
+  That is not confirmation — it is your own training data handed back with a
+  URL attached, and the URL is what makes it survive review. Leave it
+  `unverified` and say so at the gate.
 
 ### 2. Grade the hooks before spending anything
 
