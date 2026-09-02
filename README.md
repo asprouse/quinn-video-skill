@@ -17,7 +17,7 @@ with it.
 
 ```
 /plugin marketplace add asprouse/quinn-video-skill
-/plugin install quinn-video
+/plugin install quinn
 ```
 
 Then ask Claude for a video and the skill drives itself. It runs the CLI out of

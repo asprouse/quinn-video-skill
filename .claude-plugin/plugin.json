@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
-  "name": "quinn-video",
+  "name": "quinn",
   "version": "0.1.0",
-  "description": "Turns a topic into a finished 30-60s vertical educational video: HeyGen avatar, synced voiceover, word-by-word captions, and on-topic b-roll, with an automated engagement grading loop.",
+  "description": "Turns a topic into a finished 30-60s vertical educational video: HeyGen avatar, synced voiceover, word-by-word captions, and on-topic b-roll, with an approval gate before anything is spent.",
   "author": {
     "name": "Andrew Sprouse",
     "email": "andrew@takeshape.io"
@@ -10,5 +10,12 @@
   "homepage": "https://github.com/asprouse/quinn-video-skill",
   "repository": "https://github.com/asprouse/quinn-video-skill",
   "license": "MIT",
-  "keywords": ["video", "heygen", "short-form", "captions", "training", "ffmpeg"]
+  "keywords": [
+    "video",
+    "heygen",
+    "short-form",
+    "captions",
+    "training",
+    "ffmpeg"
+  ]
 }

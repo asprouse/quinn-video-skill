@@ -8,12 +8,20 @@
   },
   "plugins": [
     {
-      "name": "quinn-video",
+      "name": "quinn",
       "source": "./",
-      "description": "Turns a topic into a finished 30-60s vertical educational video: HeyGen avatar, synced voiceover, word-by-word captions, and on-topic b-roll, with an automated engagement grading loop.",
-      "author": { "name": "Andrew Sprouse" },
+      "description": "Turns a topic into a finished 30-60s vertical educational video: HeyGen avatar, synced voiceover, word-by-word captions, and on-topic b-roll, with an approval gate before anything is spent.",
+      "author": {
+        "name": "Andrew Sprouse"
+      },
       "license": "MIT",
-      "keywords": ["video", "heygen", "short-form", "captions", "training"]
+      "keywords": [
+        "video",
+        "heygen",
+        "short-form",
+        "captions",
+        "training"
+      ]
     }
   ]
 }

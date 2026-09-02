@@ -1,5 +1,5 @@
 ---
-name: short-form-video
+name: video
 description: This skill should be used when the user asks for a short-form educational video, an explainer video, a TikTok/Reels/Shorts-style video, safety training video, or asks to "make a video about X". Turns a topic into a finished 30-60 second vertical video with a HeyGen avatar, synced voiceover, word-by-word captions, and on-topic b-roll.
 version: 0.1.0
 ---

@@ -18,7 +18,7 @@ All notable changes to this project are documented here. This project follows
 - Cost guards: `doctor` reports the wallet and what it affords; the avatar
   stage refuses a render the balance cannot cover.
 - Installable Claude Code plugin: manifest, marketplace entry, MIT license.
-- `short-form-video` skill with craft references for script writing, the
+- `video` skill (invoked as `/quinn:video`) with craft references for script writing, the
   engagement rubric, visual language, and API notes.
 - HeyGen client: narration with word-level timestamps, alpha-WebM avatar
   rendering, render polling, and a readable error when an avatar lacks matting.
