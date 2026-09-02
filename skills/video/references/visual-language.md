@@ -105,6 +105,23 @@ fire. "Overreaching", "off balance", "tilting onto two legs" all pass and show
 the same danger. The generator detects the blank frame, retries, and says so
 rather than letting it ship.
 
+**Animate the shots that carry the video.** A pick that has earned its place
+can be given real motion instead of a Ken Burns pan:
+
+```json
+"1": [{"generate": "A worker climbing an extension ladder...",
+       "animate": "the worker climbs another rung, slow push in"}]
+```
+
+The still is generated and judged first, then animated — so the money is spent
+moving a composition somebody approved, not gambling on one. It takes about a
+minute per shot and runs concurrently with the others.
+
+Do not animate everything. A pan across a photograph is fine behind captions
+on a supporting beat; the difference shows on the hook, the payoff, and any
+beat whose whole point is movement. Two or three per video is usually right —
+that is where the money and the minute belong.
+
 **Draw several and choose.** A single draw is a lottery. One prompt, three
 draws, produced a ladder correctly resting on a wall, a ladder floating in
 front of one, and a ladder standing bolt upright. No wording removes that

@@ -170,6 +170,10 @@ $QV sheet          # one labelled contact sheet per beat
 5. If nothing scores ≥2, walk the fallback ladder — ending in a designed card,
    never a loosely-related clip.
 
+Two or three shots deserve real motion rather than a pan — the hook, the
+payoff, anything whose point *is* movement. Add `"animate"` to those picks;
+`references/visual-language.md` covers when it is worth it.
+
 Write `<run>/picks.json`:
 
 ```json

@@ -327,6 +327,33 @@ def generate_shot(
     return dest
 
 
+def animate_shot(
+    run: Run,
+    beat: Beat,
+    still: Path,
+    spec: object,
+    *,
+    seconds: float = 5.0,
+    log: Log = _noop,
+) -> Path:
+    """Give a chosen still real motion.
+
+    Only reached for stills that already survived the judging pass, so the
+    money is spent moving a composition somebody approved rather than rolling
+    the dice on one.
+    """
+    from .animate import animate, motion_prompt
+
+    dest = run.broll_dir / f"animated-{still.stem}.mp4"
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+
+    prompt = motion_prompt(beat.visual.intent, spec if isinstance(spec, str) else "")
+    result = animate(still, dest, prompt, seconds=seconds, log=log)
+    log(f"beat {beat.id}: animated {still.name} -> {result.seconds}s in {result.took:.0f}s")
+    return dest
+
+
 def annotate_shot(
     run: Run,
     beat: Beat,

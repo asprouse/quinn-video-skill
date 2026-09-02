@@ -322,6 +322,17 @@ def _dispatch(args: argparse.Namespace) -> int:
                         words=words,
                         log=_log,
                     )
+                elif entry.get("animate"):
+                    # The still already fixed the composition; this only adds
+                    # movement to one that survived judging.
+                    shot = broll.animate_shot(
+                        run,
+                        by_id[beat_id],
+                        shot,
+                        entry["animate"],
+                        seconds=window[1],
+                        log=_log,
+                    )
                 return beat_id, slot, [shot]
             return (
                 beat_id,
