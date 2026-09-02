@@ -77,7 +77,11 @@ swipe past.
 
 Schema: `topic`, `target_seconds`, `hook_variants` (write 3), `chosen_hook`,
 `beats[]`. Each beat needs `narration`, `visual.intent`, `visual.queries`, and
-optionally `emphasis` and `overlay`.
+optionally `visual.prompt`, `emphasis` and `overlay`.
+
+`visual.prompt` is where a generation prompt belongs — not `picks.json`, which
+is a record of one run's choices. A prompt kept only there is lost the moment
+the storyboard is rebuilt.
 
 ```bash
 $QV check     # validates, reports pacing, and lists what will render
@@ -113,6 +117,9 @@ differently, and the only place where fixing one costs nothing.
 
 Show them:
 
+- **the angle you took, and the one you rejected.** This is the cheapest thing
+  on the list to change and the most expensive to get wrong — redirecting an
+  angle costs a word, rejecting a finished script costs a rewrite
 - the script as prose, beat by beat
 - which hook you picked and **why the other two lost** — that is the judgement
   they most often want to overrule

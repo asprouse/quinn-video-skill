@@ -260,7 +260,7 @@ def generate_candidates(
     from .generate import DEFAULT_MODEL, build_prompt
     from .generate import generate_candidates as draw
 
-    text = prompt or build_prompt(beat.visual.intent)
+    text = prompt or beat.visual.prompt or build_prompt(beat.visual.intent)
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
     directory = run.broll_dir / "candidates"
     directory.mkdir(parents=True, exist_ok=True)
@@ -297,7 +297,11 @@ def generate_shot(
 
     from .generate import DEFAULT_MODEL, build_prompt, generate_still
 
-    text = prompt or build_prompt(beat.visual.intent)
+    # Order of preference: what the pick asked for, then what the storyboard
+    # specifies, then the intent as a last resort. The storyboard entry is the
+    # durable one -- a prompt that only exists in picks.json is lost the
+    # moment the run is regenerated from the script.
+    text = prompt or beat.visual.prompt or build_prompt(beat.visual.intent)
 
     # Keyed on the prompt, not on position. A beat may carry several generated
     # shots, and indexing by position means editing a prompt silently returns

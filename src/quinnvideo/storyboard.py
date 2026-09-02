@@ -26,6 +26,14 @@ class Visual(BaseModel):
         min_length=8,
         description="Plain description of the shot we want, used to judge candidates.",
     )
+    prompt: str = Field(
+        "",
+        description=(
+            "Generation prompt for this shot. Lives here rather than in "
+            "picks.json so a re-run from the storyboard reproduces the same "
+            "footage instead of drifting back to something generic."
+        ),
+    )
     queries: list[str] = Field(
         ...,
         min_length=1,
@@ -145,15 +153,28 @@ class Storyboard(BaseModel):
             lines += [f"  {n}" for n in notes]
             lines.append("")
 
+        from .config import MAX_SHOT
+
+        # Quote the whole thing, not just the metered calls. An estimate that
+        # omits footage gets approved and then overrun, and anything left out
+        # tends to go unspent -- the animation that would most improve the
+        # video is exactly what gets skipped for not being in the number.
+        shots = max(len(self.beats), round(seconds / MAX_SHOT + 0.35))
         narration = estimate_tts_cost(seconds)
         avatar = estimate_cost(seconds)
+        stills = shots * 0.06
+        animated = 3 * 0.45  # the hook, the payoff, and one in between
+
         lines += [
             "Cost to go on from here",
-            f"  narration  ~${narration:.2f}",
-            f"  avatar     ~${avatar:.2f}   ({seconds:.0f}s of render)",
-            f"  total      ~${narration + avatar:.2f}, plus ~$0.06 per generated still",
+            f"  narration   ~${narration:.2f}",
+            f"  avatar      ~${avatar:.2f}   ({seconds:.0f}s of render)",
+            f"  footage     ~${stills:.2f}   (~{shots} shots, if stock cannot serve them)",
+            f"  ---         ~${narration + avatar + stills:.2f}",
+            f"  animation   ~${animated:.2f}   optional: real motion on 3 shots instead of a pan",
             "",
-            "Everything above this line was free. Approve the script before continuing.",
+            "Everything above this line was free. Approve the script before continuing,",
+            "and say whether the animation is included.",
         ]
         return "\n".join(lines)
 

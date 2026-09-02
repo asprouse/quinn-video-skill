@@ -1,5 +1,17 @@
 # Visual language
 
+## Fix the intent, not just the shot
+
+When a shot is wrong, the instinct is to rewrite the generation prompt in
+`picks.json` and move on. That leaves the storyboard saying something generic
+while the footage says something specific, so the next review passes a shot
+that should fail, and a re-run drifts straight back.
+
+**Change `visual.intent` first**, then the prompt. The intent is what `verify`
+and the b-roll scoring judge against; a generic intent means a generic shot is
+correct by definition. Put the generation prompt in `visual.prompt` on the
+same beat so the storyboard alone reproduces the video.
+
 ## Write the intent from the line, not from what is findable
 
 `visual.intent` is what every downstream check judges against — so if the
@@ -146,6 +158,31 @@ held straight out with a flat palm on a rung returned an arm raised overhead
 with the elbow bent backwards. Common poses — climbing, crouching, carrying,
 reaching up — are reliable. Anything a stock photographer would have to pose
 deliberately is not, and belongs in `diagrams`.
+
+**Name the thing, and say how to recognise it.** A prompt describing a
+category gets you the category. Asked for "a nineties Japanese performance
+coupe", the model drew exactly that: a plausible generic shape, in a video
+about two specific cars the audience can identify on sight.
+
+If the narration names something particular — a car model, an engine, a
+standard, a piece of equipment — the prompt must name it *and* list the
+features that identify it, because the model knows shapes better than it knows
+names:
+
+- Not "a nineties Japanese coupe" → **"an R32 Skyline GT-R: boxy square
+  shoulders, rectangular headlights, flared arches, GT-R badge"**
+- Not "a turbocharged engine bay" → **"a Toyota 2JZ-GTE: one long ribbed cam
+  cover running front to back, six intake runners in a single row"**
+
+This matters most where the narration makes a **checkable claim**. A line
+saying "iron block straight six" over a V8 is not a near miss, it is wrong,
+and the audience for that video is exactly the audience that will notice. Put
+the checkable feature in the intent itself, so a wrong shot fails review
+rather than passing it.
+
+Framing helps the model comply: an inline six shot end-on keeps rendering as a
+V, because symmetry is the easier picture. Shot along its length, the single
+row is unavoidable.
 
 **Generate scenes. Draw procedures.** This is the line that matters, and it was
 found the hard way. An ordinary scene — someone climbing a ladder, someone

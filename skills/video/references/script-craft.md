@@ -29,6 +29,35 @@ or a bad one.
 - Vary sentence length. A run of same-length sentences flattens into drone.
   Short. Short. Then a longer one that carries the actual explanation. Short.
 
+## Pick the angle the audience already cares about
+
+Before the hook, decide what the video is *about*. Most topics have an
+obvious angle and a clever one, and the clever one is usually worse.
+
+The failure to avoid: asked for "Supra vs Skyline GT-R", a first draft went
+after Japan's gentlemen's agreement — the 276 hp cap both cars advertised.
+Genuinely interesting, verifiably true, and the wrong video. What those two
+cars are *famous for* is the GT-R's all-wheel drive and its touring-car
+record, and the Supra's engine and the drag strip. That is the angle the
+audience arrives with, and the one they will argue about in the comments.
+
+**Ask what each subject is actually known for**, and build on that. Reach for
+the obscure fact only when the obvious angle is exhausted or wrong.
+
+For **"X vs Y"** specifically, the strongest structure is almost always:
+
+1. Pose the comparison as a question — "Which is faster?"
+2. Refuse the premise — "Wrong question. Ask *where*."
+3. Give each side its own domain, with its real résumé as evidence
+4. Answer honestly: it depends, and here is what it depends on
+
+That beats picking a winner, which invites an argument the video cannot
+settle, and it beats a trivia angle, which answers a question nobody asked.
+
+**Offer the angle at the approval gate, not just the script.** Say which angle
+you took and which you rejected, the way you do for hooks. Redirecting an
+angle costs the user a word; rejecting a finished script costs a rewrite.
+
 ## Say what it is before you say what is interesting about it
 
 A hook that violates an expectation only lands if the viewer knows whose
@@ -63,6 +92,11 @@ Patterns that work:
 - **Direct threat** — "The rung you think is safe is the one that kills you."
 - **Open loop** — "There's one rule that prevents most ladder deaths." Then pay
   it off. Do not leave the loop open past ~10s.
+- **The question, refused** — "Which is faster, a GT-R or a Supra? Wrong
+  question. Ask where." Strong for comparisons: it states the argument the
+  viewer already has, then redirects it in three words. The refusal must not
+  answer itself — "it depends whether the track turns" gives away the payoff
+  before the viewer has invested anything.
 
 Patterns that fail:
 
