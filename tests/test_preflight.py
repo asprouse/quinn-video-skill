@@ -60,7 +60,9 @@ def test_build_stops_when_the_toolchain_is_missing(monkeypatch):
 
 
 def test_stages_that_need_nothing_always_pass(monkeypatch):
-    for command in ("doctor", "fonts", "init", "check", "status"):
+    # `init` is deliberately absent: it gates the whole pipeline, because a
+    # storyboard you cannot render is wasted work.
+    for command in ("doctor", "fonts", "check", "plan", "status"):
         _run(command, NONE, monkeypatch, toolchain_ok=False)
 
 
