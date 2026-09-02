@@ -16,13 +16,6 @@ All notable changes to this project are documented here. This project follows
   It does not verify anything; it makes assertions visible to the person who
   can. See `docs/claims.md`.
 
-- **`quinn-video cfr` and `quinn-video sources`** — read the actual text of a
-  federal regulation from the eCFR API, and check every citation in the claims
-  ledger against the section it names. A citation naming nothing is a blocker;
-  a citation that resolves has its text printed beside the claim, because the
-  failure worth catching is a real citation attached to a claim it does not
-  support and only reading catches that. See `docs/claims.md`.
-
 ### Fixed
 - **Artifacts are cached on their inputs, not their existence.** Every
   expensive stage skipped its work whenever its output file was present,

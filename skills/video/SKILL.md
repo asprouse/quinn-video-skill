@@ -140,26 +140,6 @@ Rules:
 - If a number cannot be sourced and cannot be hedged, cut it. A script with
   no statistic beats one with a fabricated statistic.
 
-**When a claim rests on a federal regulation, read the regulation.**
-
-```bash
-$QV cfr "29 CFR 1926.1053(b)(5)(i)"          # what the rule actually says
-$QV cfr --find "points of contact" --in "29 CFR 1926"   # is it in there at all?
-$QV sources                                  # check every citation in the ledger
-```
-
-`sources` blocks on a citation that names nothing, and prints the cited text
-next to each claim. **Read that text.** The failure it exists to catch is not
-an invented statistic — it is a *real* citation attached to a claim it does
-not support, which passes review because the citation checks out at a glance.
-Only you can see that mismatch; the tool can only put the two side by side.
-
-The worked example is in `references/script-craft.md`: the 4-to-1 ladder rule
-is genuinely 29 CFR 1926.1053(b)(5)(i), and "three points of contact" — taught
-alongside it, and citing it — is not in that part at all.
-
-An empty `--find` result is a finding, not a failed lookup.
-
 ### 2. Grade the hooks before spending anything
 
 Read `references/engagement-rubric.md` now and score your three hooks against

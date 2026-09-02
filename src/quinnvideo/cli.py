@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -73,16 +72,6 @@ def build_parser() -> argparse.ArgumentParser:
         "plan", help="print the script and what it will cost, for approval before spending"
     )
     plan.add_argument("--run")
-
-    cfr = sub.add_parser("cfr", help="read the text of a federal regulation")
-    cfr.add_argument("citation", nargs="?", help='e.g. "29 CFR 1926.1053(b)(5)(i)"')
-    cfr.add_argument("--find", metavar="PHRASE", help="search a part for a phrase")
-    cfr.add_argument("--in", dest="within", metavar="PART", help='e.g. "29 CFR 1926"')
-
-    sources = sub.add_parser(
-        "sources", help="check the ledger's citations against the regulations they name"
-    )
-    sources.add_argument("--run")
 
     with_run(sub.add_parser("narrate", help="synthesise the voiceover (costs credits)"))
     avatar = with_run(sub.add_parser("avatar", help="render the presenter (costs credits)"))
@@ -228,85 +217,6 @@ def _dispatch(args: argparse.Namespace) -> int:
         run = _resolve_run(args.run)
         _log(run.storyboard().review())
         return 0
-
-    if args.command == "cfr":
-        from . import cfr as cfr_module
-
-        if args.find:
-            if not args.within:
-                _log('--find needs --in, e.g. --in "29 CFR 1926"')
-                return 2
-            match = re.search(r"(\d{1,2})\s*C\.?F\.?R\.?\s*(\d{1,4})", args.within, re.IGNORECASE)
-            if not match:
-                _log(f'cannot read "{args.within}" as a CFR part')
-                return 2
-            title, part = int(match.group(1)), match.group(2)
-            hits = cfr_module.find(title, part, args.find, log=_log)
-            if not hits:
-                _log(f'\n"{args.find}" does not appear anywhere in {title} CFR {part}.')
-                _log(
-                    "An empty result is a finding: a rule that is taught as if it "
-                    "were in this standard is not in it."
-                )
-                return 0
-            _log(f'\n"{args.find}" appears {len(hits)} time(s) in {title} CFR {part}:')
-            for number, excerpt in hits:
-                _log(f"\n  {title} CFR {number}")
-                _log(f"    {excerpt}")
-            return 0
-
-        if not args.citation:
-            _log('give a citation, e.g. quinn-video cfr "29 CFR 1926.1053"')
-            return 2
-        citations = cfr_module.parse_citations(args.citation)
-        if not citations:
-            _log(
-                f'cannot read "{args.citation}" as a CFR citation. '
-                'A title is required: "29 CFR 1926.1053", not "1926.1053".'
-            )
-            return 2
-        for citation in citations:
-            head, paras = cfr_module.section(citation, log=_log)
-            _log(f"\n{head}   [{citation.title} CFR {citation.section}]")
-            wanted = citation.subdivisions
-            shown = [p for p in paras if p.path[: len(wanted)] == wanted] if wanted else paras
-            if wanted and not shown:
-                _log(
-                    f"  ({''.join(f'({s})' for s in wanted)} does not resolve in this "
-                    "section — showing the whole section)"
-                )
-                shown = paras
-            for para in shown:
-                _log(f"  {para.text}")
-        return 0
-
-    if args.command == "sources":
-        from . import claims as claims_module
-
-        run = _resolve_run(args.run)
-        board = run.storyboard()
-        from . import cfr as cfr_module
-
-        cited = sum(len(cfr_module.parse_citations(c.source)) for c in board.claims)
-        if not cited:
-            _log(
-                "No CFR citations in this ledger. That is not a pass — this checks "
-                "regulations, and says nothing about any other kind of source."
-            )
-            return 0
-
-        issues = claims_module.check_sources(board, log=_log)
-        blockers = [i for i in issues if i.severity == "blocker"]
-        for issue in issues:
-            _log(f"\n  [{issue.severity:7}] {issue.detail}")
-            _log(f"            {issue.fix}")
-        if not issues:
-            _log(f"\nall {cited} citation(s) resolve to real regulatory text.")
-        _log(
-            "\nRetrieval shows what the regulation says. Whether it supports the "
-            "claim is a reading question — read the text above."
-        )
-        return 2 if blockers else 0
 
     if args.command == "narrate":
         from . import pipeline
