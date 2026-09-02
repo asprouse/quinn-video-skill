@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,9 @@ from .stock import Candidate, Stock
 from .storyboard import Beat, Storyboard
 
 Log = Callable[[str], None]
+
+# Enough to saturate a home connection without hammering either provider.
+WORKERS = 8
 
 
 def _noop(_: str) -> None:
@@ -52,47 +56,71 @@ def gather(
     manifest: dict[str, Any] = {"beats": []}
 
     with Stock() as stock:
+
+        def search(beat, query: str, kind: str) -> list[Candidate]:
+            try:
+                return stock.search(query, kind, limit=per_query)
+            except Exception as exc:
+                log(f"beat {beat.id}: search '{query}' failed — {exc}")
+                return []
+
+        # Every search across every beat at once. They are independent HTTP
+        # calls; running them one at a time was tens of seconds of waiting for
+        # no reason.
+        jobs = [(b, q, b.visual.prefer) for b in board.beats for q in b.visual.queries]
+        with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+            results = list(pool.map(lambda job: search(*job), jobs))
+
+        by_beat: dict[int, list[Candidate]] = {b.id: [] for b in board.beats}
+        seen_per_beat: dict[int, set[str]] = {b.id: set() for b in board.beats}
+        for (beat, _, _), hits in zip(jobs, results, strict=True):
+            for hit in hits:
+                key = f"{hit.provider}:{hit.ident}"
+                if key not in seen_per_beat[beat.id]:
+                    seen_per_beat[beat.id].add(key)
+                    by_beat[beat.id].append(hit)
+
+        # A beat that wanted video and got almost nothing falls back to stills:
+        # a strong photograph with a Ken Burns move beats a weak video.
+        thin = [
+            (b, q, "photo")
+            for b in board.beats
+            if len(by_beat[b.id]) < 3 and b.visual.prefer == "video"
+            for q in b.visual.queries[:2]
+        ]
+        if thin:
+            with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+                for (beat, _, _), hits in zip(
+                    thin, pool.map(lambda job: search(*job), thin), strict=True
+                ):
+                    for hit in hits:
+                        key = f"{hit.provider}:{hit.ident}"
+                        if key not in seen_per_beat[beat.id]:
+                            seen_per_beat[beat.id].add(key)
+                            by_beat[beat.id].append(hit)
+
+        # Thumbnails likewise: a hundred-odd small downloads, all independent.
+        every = [c for b in board.beats for c in by_beat[b.id]]
+        with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+            downloaded = list(pool.map(lambda c: _cache_thumb(c, thumbs), every))
+        # Keyed by identity, not by the candidate itself: Candidate is a plain
+        # mutable dataclass and therefore unhashable.
+        fetched = {(c.provider, c.ident): path for c, path in zip(every, downloaded, strict=True)}
+
         for beat in board.beats:
-            found: list[Candidate] = []
-            seen: set[str] = set()
-
-            for query in beat.visual.queries:
-                try:
-                    hits = stock.search(query, beat.visual.prefer, limit=per_query)
-                except Exception as exc:
-                    log(f"beat {beat.id}: search '{query}' failed — {exc}")
-                    continue
-
-                for hit in hits:
-                    key = f"{hit.provider}:{hit.ident}"
-                    if key not in seen:
-                        seen.add(key)
-                        found.append(hit)
-
-            # If a beat wanted video and got almost nothing, try stills before
-            # giving up -- a strong photograph with a Ken Burns move beats a
-            # weak video every time.
-            if len(found) < 3 and beat.visual.prefer == "video":
-                for query in beat.visual.queries[:2]:
-                    try:
-                        for hit in stock.search(query, "photo", limit=per_query):
-                            key = f"{hit.provider}:{hit.ident}"
-                            if key not in seen:
-                                seen.add(key)
-                                found.append(hit)
-                    except Exception as exc:
-                        log(f"beat {beat.id}: photo search failed — {exc}")
-
-            entries = []
-            for candidate in found:
-                thumb = _cache_thumb(candidate, thumbs)
-                entries.append(
-                    {
-                        **asdict(candidate),
-                        "thumbnail": str(thumb) if thumb else None,
-                        "vertical": candidate.is_vertical,
-                    }
-                )
+            found = by_beat[beat.id]
+            entries = [
+                {
+                    **asdict(candidate),
+                    "thumbnail": (
+                        str(fetched[(candidate.provider, candidate.ident)])
+                        if fetched.get((candidate.provider, candidate.ident))
+                        else None
+                    ),
+                    "vertical": candidate.is_vertical,
+                }
+                for candidate in found
+            ]
 
             log(f"beat {beat.id}: {len(entries)} candidates for '{beat.visual.intent}'")
             manifest["beats"].append(
@@ -125,6 +153,64 @@ def _cache_thumb(candidate: Candidate, directory: Path) -> Path | None:
         # run. The gate simply has one fewer option to look at.
         return None
     return dest
+
+
+def contact_sheets(run: Run, beat_id: int | None = None, *, log: Log = _noop) -> list[Path]:
+    """Render one labelled contact sheet per beat, for judging by eye.
+
+    The gate depends on somebody actually looking at every candidate, and
+    opening a hundred thumbnails one at a time is not that. A sheet per beat,
+    numbered, is -- and building it here rather than improvising the code each
+    run keeps the numbering stable enough to refer to.
+    """
+    import math
+
+    from PIL import Image, ImageDraw
+
+    from . import fonts
+
+    manifest = json.loads((run.broll_dir / "candidates.json").read_text(encoding="utf-8"))
+    directory = run.broll_dir / "sheets"
+    directory.mkdir(parents=True, exist_ok=True)
+
+    label = fonts.load(fonts.CAPTION, 20)
+    made: list[Path] = []
+    cols, cw, ch, caption = 5, 300, 200, 28
+
+    for beat in manifest["beats"]:
+        if beat_id is not None and beat["id"] != beat_id:
+            continue
+        cands = [c for c in beat["candidates"] if c.get("thumbnail")]
+        if not cands:
+            continue
+
+        rows = math.ceil(len(cands) / cols)
+        sheet = Image.new("RGB", (cols * cw, rows * (ch + caption)), (18, 20, 24))
+        draw = ImageDraw.Draw(sheet)
+
+        for index, candidate in enumerate(cands):
+            x, y = (index % cols) * cw, (index // cols) * (ch + caption)
+            try:
+                with Image.open(candidate["thumbnail"]) as raw:
+                    thumb = raw.convert("RGB")
+                    scale = max(cw / thumb.width, ch / thumb.height)
+                    thumb = thumb.resize((round(thumb.width * scale), round(thumb.height * scale)))
+                    sheet.paste(thumb.crop((0, 0, cw, ch)), (x, y))
+            except Exception:
+                draw.text((x + 8, y + 8), "no thumbnail", font=label, fill=(200, 80, 80))
+            draw.text(
+                (x + 6, y + ch + 5),
+                f"{index + 1}. {candidate['ident']} {candidate['kind'][:3]}",
+                font=label,
+                fill=(235, 235, 240),
+            )
+
+        dest = directory / f"beat-{beat['id']}.jpg"
+        sheet.save(dest, quality=85)
+        made.append(dest)
+        log(f"beat {beat['id']}: {len(cands)} candidates -> {dest}")
+
+    return made
 
 
 def fetch_picks(

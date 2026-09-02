@@ -64,6 +64,73 @@ def narrate(
 # --- stage 2: avatar -----------------------------------------------------
 
 
+def submit_avatar(
+    run: Run,
+    speech: Speech,
+    *,
+    avatar_id: str | None = None,
+    transparent: bool = True,
+    engine: str = "avatar_iv",
+    log: Log = _noop,
+) -> str:
+    """Queue the avatar render and return without waiting.
+
+    The render takes minutes of pure waiting, and choosing b-roll takes
+    minutes of work that does not depend on it. Running them at the same time
+    is most of the wall-clock difference in a full build.
+    """
+    existing = run.state().get("avatar_video_id")
+    if existing and not run.has(run.avatar):
+        log(f"avatar: already queued as {existing}")
+        return existing
+
+    avatar_id = avatar_id or require("QUINN_AVATAR_ID", "the presenter")
+    with HeyGen() as client:
+        cost = estimate_cost(speech.duration, engine)
+        balance = client.balance()
+        if balance is not None:
+            log(f"avatar: ~${cost:.2f} for {speech.duration:.0f}s, ${balance:.2f} available")
+            if balance < cost:
+                raise HeyGenError(
+                    f"insufficient balance: this render costs about ${cost:.2f} and the "
+                    f"wallet holds ${balance:.2f}. Shorten the script or top up."
+                )
+        video_id = client.create_avatar_video(
+            avatar_id,
+            speech.audio_url,
+            transparent=transparent,
+            idempotency_key=f"{run.directory.name}-avatar",
+        )
+    run.update_state(avatar_video_id=video_id)
+    log(f"avatar: queued {video_id} — carry on with b-roll while it renders")
+    return video_id
+
+
+def collect_avatar(run: Run, *, log: Log = _noop) -> Path:
+    """Wait for a queued render and download it."""
+    if run.has(run.avatar):
+        log("avatar: cached")
+        return run.avatar
+
+    video_id = run.state().get("avatar_video_id")
+    if not video_id:
+        raise HeyGenError("no avatar render has been queued for this run")
+
+    with HeyGen() as client:
+        seen: set[str] = set()
+
+        def note(status: str) -> None:
+            if status not in seen:
+                seen.add(status)
+                log(f"avatar: {status}")
+
+        info = client.wait_for_video(video_id, on_poll=note)
+
+    download(info["video_url"], run.avatar)
+    log(f"avatar: downloaded ({run.avatar.stat().st_size / 1e6:.1f} MB)")
+    return run.avatar
+
+
 def render_avatar(
     run: Run,
     speech: Speech,
@@ -249,6 +316,17 @@ def plan_segments(
     return segments
 
 
+def _cut_fingerprint(segments: list[Segment]) -> str:
+    """Identifies a cut list: which clip plays, for how long, in what order."""
+    import hashlib
+
+    joined = "|".join(
+        f"{seg.source}:{seg.start:.3f}:{seg.duration:.3f}:{seg.is_still}:{seg.zoom_in}"
+        for seg in segments
+    )
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+
 def _segment_beats(segments: list[Segment], picks_index: dict[str, int]) -> list[int]:
     """Which beat each shot came from, looked up by its source file."""
     return [picks_index.get(str(seg.source), 0) for seg in segments]
@@ -291,9 +369,18 @@ def build(
         ]
     )
 
-    if not run.has(run.base) or force:
-        log("compose: building b-roll base")
+    # Keyed on the cut list, not merely on the file existing. Caching by
+    # existence meant swapping a shot rebuilt nothing: the finished video
+    # silently kept the old footage and only --force fixed it, which is a
+    # trap nobody should have to know about.
+    fingerprint = _cut_fingerprint(comp.segments)
+    stamp = run.base.with_suffix(".cut")
+    stale = not stamp.exists() or stamp.read_text(encoding="utf-8") != fingerprint
+
+    if not run.has(run.base) or stale or force:
+        log("compose: building b-roll base" + (" (cut list changed)" if stale else ""))
         compose.build_base(comp, run.base)
+        stamp.write_text(fingerprint, encoding="utf-8")
 
     log("compose: laying avatar, captions, audio")
     compose.build_final(comp, run.base, run.final)

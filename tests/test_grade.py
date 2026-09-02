@@ -93,3 +93,20 @@ def test_silence_share_counts_deliberate_pauses_only():
 
     chatter = _speak([(f"w{i}", i * 0.34, i * 0.34 + 0.3) for i in range(20)])
     assert silence_share(chatter, 6.8) == 0.0  # 0.04s gaps are not pauses
+
+
+def test_the_cut_fingerprint_notices_a_swapped_shot():
+    """Regression: the b-roll base was cached by existence alone, so replacing
+    a clip rebuilt nothing and the finished video kept the old footage."""
+    from pathlib import Path
+
+    from quinnvideo.compose import Segment
+    from quinnvideo.pipeline import _cut_fingerprint
+
+    a = [Segment(Path("one.mp4"), 0.0, 2.0), Segment(Path("two.mp4"), 2.0, 2.0)]
+    b = [Segment(Path("one.mp4"), 0.0, 2.0), Segment(Path("three.mp4"), 2.0, 2.0)]
+    reordered = [a[1], a[0]]
+
+    assert _cut_fingerprint(a) == _cut_fingerprint(list(a))
+    assert _cut_fingerprint(a) != _cut_fingerprint(b)
+    assert _cut_fingerprint(a) != _cut_fingerprint(reordered)

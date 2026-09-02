@@ -17,6 +17,7 @@ beats belong to `diagrams`.
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -187,20 +188,24 @@ def generate_candidates(
     prompt wording removes that variance -- the fix is to draw a few and
     choose, which is what a photographer does anyway.
     """
-    kept: list[Path] = []
-    for index in range(count):
+
+    def draw(index: int) -> Path | None:
         letter = chr(ord("a") + index)
         dest = directory / f"{stem}-{letter}.jpg"
         if dest.exists() and dest.stat().st_size > 0:
-            kept.append(dest)
-            continue
+            return dest
         try:
             generate_still(prompt, dest, model=model, attempts=1)
-            kept.append(dest)
             log(f"    candidate {letter}: ok")
         except GenerationError as exc:
             log(f"    candidate {letter}: rejected — {str(exc).split(chr(46))[0][:70]}")
-    return kept
+            return None
+        return dest
+
+    # Independent draws of the same prompt, so there is no reason to wait for
+    # one before starting the next.
+    with ThreadPoolExecutor(max_workers=min(count, 4)) as pool:
+        return [p for p in pool.map(draw, range(count)) if p is not None]
 
 
 def generate_still(

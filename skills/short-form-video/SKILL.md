@@ -82,16 +82,48 @@ Score your three hooks against `references/engagement-rubric.md`. This is free �
 it is pure text. Pick the winner, make it beat 1's narration, set `chosen_hook`,
 and re-run `check`.
 
-### 3. Narration (costs credits)
+### 3. STOP. Show the user the script and get approval.
 
 ```bash
-$QV narrate
+$QV plan
 ```
 
-Produces the audio and word-level timestamps. Those timestamps drive the
-captions, the b-roll cuts, and the avatar lip-sync — one clock for everything.
+**Do not run any further command until the user has said yes.** Everything up
+to here is free; the next command spends their money and several minutes of
+their time. A storyboard is a page of text — it is the cheapest possible place
+to catch a wrong angle, a dull hook, or a factual call they would make
+differently, and the only place where fixing one costs nothing.
 
-### 4. B-roll: search, then judge
+Show them:
+
+- the script as prose, beat by beat
+- which hook you picked and **why the other two lost** — that is the judgement
+  they most often want to overrule
+- any factual call you had to make, especially a number or a standard
+- the estimated cost
+
+Then ask plainly whether to proceed. If they want changes, edit
+`storyboard.json` and show `plan` again — still free.
+
+**The one exception:** if the user has already said to just build it, or asked
+for no interruptions, take that as approval and carry on.
+
+### 4. Narration (costs credits)
+
+```bash
+$QV narrate                # ~$0.02, gives the real duration
+$QV avatar --submit        # queues the render and returns immediately
+```
+
+Narration produces the audio and word-level timestamps that drive the captions,
+the b-roll cuts, and the avatar lip-sync — one clock for everything.
+
+**Submit the avatar now, do not wait for it.** It takes minutes of pure waiting,
+and choosing b-roll takes minutes of work that does not depend on it. Running
+them at the same time is most of the difference between a two-minute build and
+a ten-minute one. Collect it in step 6.
+
+### 5. B-roll: search, then judge
 
 ```bash
 $QV broll
@@ -100,9 +132,13 @@ $QV broll
 This searches every beat and caches thumbnails. **It picks nothing.** Now do the
 part that matters:
 
-1. Read `<run>/broll/candidates.json`.
-2. **Look at the thumbnails** with the Read tool. Do not judge from filenames or
-   query strings — actually view the images.
+```bash
+$QV sheet          # one labelled contact sheet per beat
+```
+
+1. **Read each sheet** in `<run>/broll/sheets/` with the Read tool. Do not judge
+   from filenames or query strings — actually view the images. Details in
+   `<run>/broll/candidates.json`.
 3. For each, score 0–3 against that beat's `visual.intent`:
    - **3** — shows exactly the described thing
    - **2** — clearly on-topic and supports the line
@@ -127,14 +163,14 @@ Write `<run>/picks.json`:
 $QV fetch
 ```
 
-### 5. Avatar and build
+### 6. Collect the avatar and build
 
 ```bash
-$QV avatar    # costs credits; a few minutes
+$QV avatar --collect   # waits for the render submitted in step 4
 $QV build
 ```
 
-### 6. Grade the result, then fix it
+### 7. Grade the result, then fix it
 
 **This step is not optional. The first render is a draft.**
 
@@ -157,7 +193,8 @@ cannot: **view the sampled frames in `<run>/frames/`** and score against
 `references/engagement-rubric.md`. Then repair:
 
 - **Visual problems** (wrong shot, caption over a busy area, shot too long) —
-  re-pick footage and re-run `build`. Free.
+  re-pick footage, re-run `fetch`, then `build`. Free. The base track is keyed
+  on the cut list, so a swapped clip rebuilds automatically.
 - **Script problems** (weak hook, dead air, rushed explanation) — these need a
   re-`narrate` and re-`avatar`, which costs credits again. Tell the user the
   cost before doing it.
@@ -168,7 +205,11 @@ passes is normal.
 ## Cost discipline
 
 `narrate` and `avatar` spend money; everything else is free. Get the script
-right before step 3, and prefer visual fixes over script fixes afterwards.
+right at the approval gate, and prefer visual fixes over script fixes
+afterwards — footage, captions and staging can all be redone for nothing.
+
+Never spend past the gate without saying what it will cost first. If the user
+set a budget, track it and stop when it is reached rather than at the end.
 
 ## References
 

@@ -60,12 +60,30 @@ def build_parser() -> argparse.ArgumentParser:
     check = sub.add_parser("check", help="validate a storyboard and report its pacing")
     check.add_argument("--run")
 
+    plan = sub.add_parser(
+        "plan", help="print the script and what it will cost, for approval before spending"
+    )
+    plan.add_argument("--run")
+
     with_run(sub.add_parser("narrate", help="synthesise the voiceover (costs credits)"))
-    with_run(sub.add_parser("avatar", help="render the presenter (costs credits)"))
+    avatar = with_run(sub.add_parser("avatar", help="render the presenter (costs credits)"))
+    avatar.add_argument(
+        "--submit",
+        action="store_true",
+        help="queue the render and return, so b-roll can proceed while it runs",
+    )
+    avatar.add_argument("--collect", action="store_true", help="wait for a queued render")
     with_run(sub.add_parser("overlay", help="draw the caption layer"))
 
     gather = with_run(sub.add_parser("broll", help="search stock footage for every beat"))
     gather.add_argument("--per-query", type=int, default=8)
+
+    sheets = with_run(
+        sub.add_parser(
+            "sheet", help="render labelled contact sheets of the candidates, to judge by eye"
+        )
+    )
+    sheets.add_argument("--beat", type=int, help="only this beat")
 
     fetch = with_run(sub.add_parser("fetch", help="download the chosen footage"))
     fetch.add_argument("--picks", help="picks JSON (default: <run>/picks.json)")
@@ -157,6 +175,11 @@ def _dispatch(args: argparse.Namespace) -> int:
                 _log(f"  {note}")
         return 0
 
+    if args.command == "plan":
+        run = _resolve_run(args.run)
+        _log(run.storyboard().review())
+        return 0
+
     if args.command == "narrate":
         from . import pipeline
 
@@ -168,7 +191,15 @@ def _dispatch(args: argparse.Namespace) -> int:
         from . import pipeline
 
         run = _resolve_run(args.run)
+        if args.collect:
+            pipeline.collect_avatar(run, log=_log)
+            return 0
+
         speech = pipeline.narrate(run, run.storyboard(), log=_log)
+        if args.submit:
+            pipeline.submit_avatar(run, speech, log=_log)
+            return 0
+
         pipeline.render_avatar(run, speech, force=args.force, log=_log)
         return 0
 
@@ -200,6 +231,15 @@ def _dispatch(args: argparse.Namespace) -> int:
             )
         _log(f"\nCandidates and thumbnails: {run.broll_dir}/candidates.json")
         _log("Review the thumbnails, then write picks.json and run `quinn-video fetch`.")
+        return 0
+
+    if args.command == "sheet":
+        from . import broll
+
+        run = _resolve_run(args.run)
+        made = broll.contact_sheets(run, args.beat, log=_log)
+        _log(f"\n{len(made)} sheet(s). Open each and score every candidate against the")
+        _log("beat's narration — not against its visual intent, which you wrote.")
         return 0
 
     if args.command == "fetch":

@@ -107,6 +107,56 @@ class Storyboard(BaseModel):
     def estimated_seconds(self, wpm: int = TARGET_WPM) -> float:
         return self.word_count / wpm * 60
 
+    def review(self, wpm: int = TARGET_WPM) -> str:
+        """The script as a person would read it, for approval before spending.
+
+        Everything up to this point is free; everything after it costs money
+        and minutes. A storyboard is a page of text, so it is the cheapest
+        possible place to catch a bad idea -- and the only place where fixing
+        one costs nothing.
+        """
+        from .heygen import estimate_cost, estimate_tts_cost
+
+        seconds = self.estimated_seconds(wpm)
+        lines = [
+            f"{self.topic.upper()}   ~{seconds:.0f}s, {self.word_count} words, "
+            f"{len(self.beats)} beats",
+            "",
+        ]
+
+        if self.hook_variants:
+            lines.append("Hooks considered")
+            for index, hook in enumerate(self.hook_variants):
+                mark = "→" if index == self.chosen_hook else " "
+                lines.append(f"  {mark} {hook}")
+            lines.append("")
+
+        lines.append("Script")
+        for beat in self.beats:
+            lines.append(f"  {beat.id}. {beat.narration}")
+            lines.append(f"     visual: {beat.visual.intent}")
+            if beat.overlay:
+                lines.append(f'     on screen: {beat.overlay.kind} "{beat.overlay.text}"')
+        lines.append("")
+
+        notes = [n for n in self.render_manifest() if n.startswith("!")]
+        if notes:
+            lines.append("Warnings")
+            lines += [f"  {n}" for n in notes]
+            lines.append("")
+
+        narration = estimate_tts_cost(seconds)
+        avatar = estimate_cost(seconds)
+        lines += [
+            "Cost to go on from here",
+            f"  narration  ~${narration:.2f}",
+            f"  avatar     ~${avatar:.2f}   ({seconds:.0f}s of render)",
+            f"  total      ~${narration + avatar:.2f}, plus ~$0.06 per generated still",
+            "",
+            "Everything above this line was free. Approve the script before continuing.",
+        ]
+        return "\n".join(lines)
+
     def render_manifest(self) -> list[str]:
         """What of this storyboard will actually reach the screen.
 
