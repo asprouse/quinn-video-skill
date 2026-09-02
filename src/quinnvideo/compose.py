@@ -28,6 +28,10 @@ class Segment:
     # Ken Burns direction for stills. Motion keeps a photograph from reading
     # as a dead frame in the middle of a fast-cut sequence.
     zoom_in: bool = True
+    # Which way the frame drifts while it zooms. A pure zoom on a long hold
+    # reads as a slow push on nothing; a little lateral travel gives the eye
+    # something to follow.
+    pan: str = "right"
 
 
 @dataclass
@@ -145,10 +149,27 @@ def _segment_chain(index: int, segment: Segment, label: str) -> str:
     if segment.is_still:
         # One input frame in, `frames` frames out. zoompan needs the source
         # oversampled first or the zoom shimmers on high-contrast edges.
-        direction = f"1+0.12*on/{frames}" if segment.zoom_in else f"1.12-0.12*on/{frames}"
+        #
+        # The move scales with the hold. A fixed 12% push is right for three
+        # seconds and imperceptible over seven, which is what makes a long
+        # still read as a freeze rather than a shot.
+        travel = min(0.26, 0.05 + 0.030 * segment.duration)
+        direction = (
+            f"1+{travel:.3f}*on/{frames}"
+            if segment.zoom_in
+            else f"{1 + travel:.3f}-{travel:.3f}*on/{frames}"
+        )
+        # Drift across roughly a third of the headroom the zoom creates, so
+        # the pan never runs past the edge of the frame.
+        drift = travel / 3
+        x = {
+            "right": f"(iw-iw/zoom)*({drift:.3f}*on/{frames})/{travel:.3f}",
+            "left": f"(iw-iw/zoom)*(1-{drift:.3f}*on/{frames}/{travel:.3f})",
+        }.get(segment.pan, "(iw-iw/zoom)/2")
         return (
             f"[{index}:v]{cover},scale={WIDTH * 2}:{HEIGHT * 2},"
-            f"zoompan=z='{direction}':d={frames}:s={WIDTH}x{HEIGHT}:fps={FPS},"
+            f"zoompan=z='{direction}':x='{x}':y='(ih-ih/zoom)/2':"
+            f"d={frames}:s={WIDTH}x{HEIGHT}:fps={FPS},"
             f"trim=duration={segment.duration:.3f},setpts=PTS-STARTPTS,"
             f"setsar=1,format=yuv420p[{label}]"
         )

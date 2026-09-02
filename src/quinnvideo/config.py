@@ -115,6 +115,11 @@ VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 0.85)
 # Below this the read drags, whatever the script says.
 SLOW_WPM = 155
 
+# Longest a single shot holds before cutting. Every second here is an asset
+# not sourced, not judged and not paid for, so it is the cheapest lever in the
+# pipeline -- bounded by how long a shot can hold before it reads as static.
+MAX_SHOT = float(os.environ.get("QUINN_MAX_SHOT") or 7.0)
+
 # Measured, not assumed. Two full scripts through the configured voice at
 # VOICE_SPEED came back at 178 and 165 wpm, so 170 is the honest figure; the
 # earlier 198 came from a single short line and made `check` underestimate

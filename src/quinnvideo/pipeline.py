@@ -15,7 +15,7 @@ from pathlib import Path
 from . import captions, compose, ff
 from .align import BeatTiming, align, normalise
 from .compose import Composition, Segment
-from .config import SLOW_WPM, VOICE_SPEED, require
+from .config import MAX_SHOT, SLOW_WPM, VOICE_SPEED, require
 from .heygen import HeyGen, HeyGenError, Speech, download, estimate_cost
 from .runs import Run
 from .storyboard import Storyboard
@@ -273,15 +273,19 @@ def plan_segments(
     timings: list[BeatTiming],
     picks: dict[int, list[Path]],
     *,
-    max_shot: float = 4.0,
+    max_shot: float = MAX_SHOT,
     atomic: set[int] | None = None,
     log: Log = _noop,
 ) -> list[Segment]:
     """Turn beat timings plus chosen footage into a cut list.
 
-    A beat that outlasts ``max_shot`` is cut into several shots. Short-form
-    dies on a static frame and the brief asks for a *fast-moving* slideshow,
-    so nothing sits longer than four seconds without a cut.
+    A beat that outlasts ``max_shot`` is cut into several shots.
+
+    The cap used to be four seconds, which on a fifty-second video forced
+    fourteen shots -- fourteen things to source, judge and pay for. Most of
+    that was a workaround for stills sitting dead on screen, and the Ken Burns
+    move now scales with the hold, so a longer shot still moves. Seven seconds
+    roughly halves the asset count for the same finished video.
 
     A beat may carry more than one clip, and the cuts rotate through them.
     That matters because the long beats are the ones most in need of variety:
@@ -318,6 +322,7 @@ def plan_segments(
                     # Alternate the Ken Burns direction so repeated shots of
                     # one still do not read as a loop.
                     zoom_in=(len(segments) % 2 == 0),
+                    pan=("right", "left")[len(segments) % 2],
                 )
             )
 
