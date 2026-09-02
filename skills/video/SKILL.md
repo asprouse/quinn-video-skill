@@ -17,6 +17,12 @@ what the narration describes.
 boring has failed. Budget most of your effort on the script and the b-roll
 choices — that is where videos are won.
 
+**Work down this file in order, and do not read ahead.** Three reference files
+sit alongside it. Each is named at the one step that needs it, and should be
+read *at* that step, not before. Reading all three up front costs more than
+this whole file and is wasted on any run that stops early — most do, at the
+credentials check two paragraphs below.
+
 ## Setup
 
 Do this first, once per session. Every command below runs through the plugin's
@@ -65,7 +71,7 @@ $QV init "ladder safety"     # prints the run directory
 ```
 
 Write `storyboard.json` into that directory. Read
-`references/script-craft.md` **before** writing it — the hook rules and pacing
+`references/script-craft.md` **now, before writing** — the hook rules and pacing
 targets there are the difference between a video people watch and one they
 swipe past.
 
@@ -88,7 +94,8 @@ count is what sets the runtime, and you cannot trim it after paying for audio.
 
 ### 2. Grade the hooks before spending anything
 
-Score your three hooks against `references/engagement-rubric.md`. This is free —
+Read `references/engagement-rubric.md` now and score your three hooks against
+it. This is free —
 it is pure text. Pick the winner, make it beat 1's narration, set `chosen_hook`,
 and re-run `check`.
 
@@ -140,7 +147,11 @@ $QV broll
 ```
 
 This searches every beat and caches thumbnails. **It picks nothing.** Now do the
-part that matters:
+part that matters.
+
+Read `references/visual-language.md` now. It covers judging footage, the
+fallback ladder, writing prompts for generated shots, and diagrams — the whole
+of the rest of this step.
 
 ```bash
 $QV sheet          # one labelled contact sheet per beat
@@ -149,16 +160,15 @@ $QV sheet          # one labelled contact sheet per beat
 1. **Read each sheet** in `<run>/broll/sheets/` with the Read tool. Do not judge
    from filenames or query strings — actually view the images. Details in
    `<run>/broll/candidates.json`.
-3. For each, score 0–3 against that beat's `visual.intent`:
+2. For each, score 0–3 against that beat's `visual.intent`:
    - **3** — shows exactly the described thing
    - **2** — clearly on-topic and supports the line
    - **1** — same general world, but not the described thing
    - **0** — unrelated
 4. Accept the best candidate scoring **≥2**. Prefer video over stills, and
    vertical over landscape (no cropping loss).
-5. If nothing scores ≥2, walk the fallback ladder in
-   `references/visual-language.md` — ending in a designed card, never a
-   loosely-related clip.
+5. If nothing scores ≥2, walk the fallback ladder — ending in a designed card,
+   never a loosely-related clip.
 
 Write `<run>/picks.json`:
 
@@ -221,13 +231,9 @@ afterwards — footage, captions and staging can all be redone for nothing.
 Never spend past the gate without saying what it will cost first. If the user
 set a budget, track it and stop when it is reached rather than at the end.
 
-## References
-
-- `references/script-craft.md` — hooks, pacing, structure. **Read before writing.**
-- `references/engagement-rubric.md` — the grading rubric, used twice.
-- `references/visual-language.md` — b-roll judging, the fallback ladder, prompt
-  craft, diagrams.
+## What is not in here
 
 Everything the CLI handles for itself — API shapes, codecs, caption geometry —
-is documented in the code and in `docs/api-notes.md`, not here. If a failure
-ever needs one of those to understand, the error message is the thing to fix.
+lives in the code and in `docs/api-notes.md`. You never call those APIs, so
+you never need those details. If a failure ever seems to need them, the error
+message is the thing to fix.
