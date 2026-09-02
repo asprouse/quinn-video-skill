@@ -16,6 +16,27 @@ A 30–60s explainer that lands has four movements:
 rule" is a topic. If you are teaching three rules, you are making three videos
 or a bad one.
 
+## One beat per visual idea
+
+A beat is a unit of *picture*, not of grammar. If a line names two different
+things, it needs two beats, because the cut list divides a beat's time evenly
+between its clips — and an even split almost never falls where the sentence
+boundary does.
+
+The failure, from a real build: one beat carried *"So which is faster?
+Whichever one matches your track. Corners belong to Godzilla. The straight line
+belongs to the Supra."* Two clips were supplied, GT-R then Supra, and the
+midpoint split put the Supra on screen for "Corners belong to Godzilla". The
+payoff line — the one the whole video builds to — named one car and showed the
+other.
+
+Split it into three beats, one per idea, and each line lands on its own shot.
+
+**Splitting is free if you split at a sentence boundary.** The narration is the
+beats concatenated, so cutting a beat in two at a full stop leaves the text
+byte-identical — the audio and the avatar render stay cached and nothing is
+re-bought. Restructuring beats costs nothing; only changing words costs money.
+
 ## Pacing
 
 - Target **165–180 wpm**. Short-form narration is faster than conversation.
