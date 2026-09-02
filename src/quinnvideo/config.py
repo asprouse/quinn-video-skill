@@ -122,6 +122,15 @@ VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 1.0)
 # Below this the read drags, whatever the script says.
 SLOW_WPM = 155
 
+# Passed to HeyGen with every avatar render. Measured against the same audio
+# and the same avatar, this lifts frame-to-frame movement by about a quarter --
+# the difference between a head that talks and a person who is presenting.
+# Costs nothing; it is a field on a render already being paid for.
+MOTION_PROMPT = os.environ.get("QUINN_MOTION_PROMPT") or (
+    "Energetic, confident delivery. Animated hand gestures, leaning slightly "
+    "toward the camera, expressive eyebrows, natural head movement."
+)
+
 # Longest a single shot holds before cutting. Every second here is an asset
 # not sourced, not judged and not paid for, so it is the cheapest lever in the
 # pipeline -- bounded by how long a shot can hold before it reads as static.

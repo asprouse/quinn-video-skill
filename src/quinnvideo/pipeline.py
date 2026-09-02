@@ -15,7 +15,7 @@ from pathlib import Path
 from . import captions, compose, ff
 from .align import BeatTiming, align, normalise
 from .compose import Composition, Segment
-from .config import MAX_SHOT, SLOW_WPM, VOICE_SPEED, require
+from .config import MAX_SHOT, MOTION_PROMPT, SLOW_WPM, VOICE_SPEED, require
 from .heygen import HeyGen, HeyGenError, Speech, download, estimate_cost
 from .runs import Run
 from .storyboard import Storyboard
@@ -107,6 +107,7 @@ def submit_avatar(
             avatar_id,
             speech.audio_url,
             transparent=transparent,
+            motion_prompt=MOTION_PROMPT,
             idempotency_key=f"{run.directory.name}-avatar",
         )
     run.update_state(avatar_video_id=video_id)
@@ -173,6 +174,7 @@ def render_avatar(
             avatar_id,
             speech.audio_url,
             transparent=transparent,
+            motion_prompt=MOTION_PROMPT,
             # A run only ever needs one avatar, so keying on the run name makes
             # a retry after a network blip reuse the render instead of buying
             # a second one.

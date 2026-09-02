@@ -253,6 +253,22 @@ narration so the rule is spoken while the diagram draws it.
 Everything in the diagram stays above y=1000, clear of the caption line and the
 cornered presenter. When adding new diagrams, keep to that band.
 
+## Choosing a presenter
+
+Two things matter, and only one of them is taste.
+
+**Framing beats everything.** The presenter is composited at roughly 40% of
+frame width, so a head-and-shoulders avatar reads and a full-body seated one
+does not — at that size the face is a few dozen pixels. When comparing
+avatars, look at how much of the frame the head occupies, not how good the
+photograph is.
+
+**The background is removed**, so judge the person and their clothing only.
+The kitchen, the office and the Christmas tree all disappear.
+
+Delivery is not an avatar property — it comes from the audio and from the
+motion prompt, both of which apply to whoever is on screen.
+
 ## What you do not control
 
 Captions, cut rhythm and avatar staging are all derived from the word
