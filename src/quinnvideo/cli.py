@@ -54,6 +54,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("fonts", help="download the bundled caption typefaces")
 
+    aud = sub.add_parser("audition", help="rank voices by how lively they read, at a matched rate")
+    aud.add_argument("--limit", type=int, default=24, help="how many voices to try")
+
     init = sub.add_parser("init", help="create a run directory for a topic")
     init.add_argument("topic")
     init.add_argument(
@@ -154,6 +157,12 @@ def _dispatch(args: argparse.Namespace) -> int:
         from .fonts import install
 
         return install()
+
+    if args.command == "audition":
+        from .voices import audition
+
+        audition(args.limit, log=_log)
+        return 0
 
     if args.command == "init":
         from .runs import Run

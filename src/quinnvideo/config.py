@@ -106,11 +106,18 @@ TARGET_SECONDS = max(
     MIN_SECONDS, min(MAX_SECONDS, int(os.environ.get("QUINN_TARGET_SECONDS") or 45))
 )
 
-# Delivery speed passed to HeyGen. Its voices read *fast* -- Ray comes out at
-# 258 wpm at speed 1.0, which is auctioneer territory and unusable for
-# instruction. 0.8 lands near 198 wpm: quick enough for short-form, slow
-# enough to teach.
-VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 0.85)
+# Delivery speed passed to HeyGen.
+#
+# This was 0.85 for a long time and it was wrong. The original calibration
+# used a twenty-four word fragment, which came back at 258 wpm and looked like
+# auctioneer speed -- but a fragment has almost no sentence pauses, so it
+# wildly overstates the rate. Real scripts at 0.85 landed at 145 to 178 wpm,
+# and 145 is well under the floor where a read starts to drag.
+#
+# Measured properly across six voices on a script-shaped line, speed 1.0 lands
+# between 167 and 180 wpm, which is the band short-form wants. Calibrate on
+# something the length of a real script or the number lies to you.
+VOICE_SPEED = float(os.environ.get("QUINN_VOICE_SPEED") or 1.0)
 
 # Below this the read drags, whatever the script says.
 SLOW_WPM = 155
