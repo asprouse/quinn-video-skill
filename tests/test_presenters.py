@@ -71,3 +71,19 @@ def test_a_number_resolves_against_the_last_list(tmp_path, monkeypatch):
     assert doctor._resolve("99")[1].startswith("there is no 99")
     assert doctor._resolve("Maeve")[0] == "a" * 32
     assert "nothing in the last list" in doctor._resolve("Zebediah")[1]
+
+
+def test_the_probe_engine_is_one_the_avatar_supports():
+    """Regression: the probe defaulted to avatar_iii because it is cheapest,
+    but a custom avatar offers avatar_v and avatar_iv only. The probe then
+    failed on the engine and reported that as a verdict on transparency --
+    an unsupported engine and an unmattable avatar are different answers."""
+    from quinnvideo.probe import cheapest_engine
+
+    assert cheapest_engine({"supported_api_engines": ["avatar_v", "avatar_iv"]}) == "avatar_iv"
+    assert (
+        cheapest_engine({"supported_api_engines": ["avatar_v", "avatar_iv", "avatar_iii"]})
+        == "avatar_iii"
+    )
+    assert cheapest_engine(None) == "avatar_iv"
+    assert cheapest_engine({"supported_api_engines": []}) == "avatar_iv"

@@ -15,7 +15,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import ff
-from .heygen import HeyGen, HeyGenError, MattingUnsupportedError, download, estimate_cost
+from .heygen import (
+    AVATAR_RATES,
+    HeyGen,
+    HeyGenError,
+    MattingUnsupportedError,
+    download,
+    estimate_cost,
+)
 
 # Just long enough to get a real render back. Billing is per second, so this
 # is the smallest useful question we can ask.
@@ -34,16 +41,40 @@ class ProbeResult:
     cost: float = 0.0
 
 
+def cheapest_engine(avatar: dict | None, avatar_type: str = "photo_avatar") -> str:
+    """The least expensive engine this particular avatar actually supports.
+
+    Defaulting to avatar_iii because it is cheapest was wrong for any avatar
+    that does not offer it -- a custom avatar supports avatar_v and avatar_iv
+    only, so the probe failed on the engine and reported that as if it were a
+    verdict on transparency. An unsupported engine and an unmattable avatar
+    are different answers.
+    """
+    supported = (avatar or {}).get("supported_api_engines") or []
+    ranked = sorted(
+        (e for e in supported if (e, avatar_type) in AVATAR_RATES),
+        key=lambda e: AVATAR_RATES[(e, avatar_type)],
+    )
+    return ranked[0] if ranked else "avatar_iv"
+
+
 def probe_transparency(
     avatar_id: str,
     voice_id: str,
     *,
-    engine: str = "avatar_iii",
+    engine: str | None = None,
     keep: Path | None = None,
     log=lambda _: None,
 ) -> ProbeResult:
+    with HeyGen() as client:
+        details = client.avatar(avatar_id)
+    if engine is None:
+        engine = cheapest_engine(details)
+        supported = (details or {}).get("supported_api_engines") or []
+        log(f"probe: {avatar_id} supports {', '.join(supported) or 'nothing listed'}")
+
     cost = estimate_cost(PROBE_SECONDS, engine)
-    log(f"probe: {avatar_id} on {engine}, ~${cost:.2f}")
+    log(f"probe: {engine}, ~${cost:.2f}")
 
     with HeyGen() as client:
         balance = client.balance()

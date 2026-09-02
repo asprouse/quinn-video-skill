@@ -116,7 +116,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     probe.add_argument("--avatar", help="avatar id (default: QUINN_AVATAR_ID)")
     probe.add_argument("--voice", help="voice id (default: QUINN_VOICE_ID)")
-    probe.add_argument("--engine", default="avatar_iii", help="cheapest engine by default")
+    probe.add_argument(
+        "--engine", help="override the engine (default: cheapest the avatar supports)"
+    )
     probe.add_argument("--keep", help="where to save the probe render")
 
     cands = with_run(
