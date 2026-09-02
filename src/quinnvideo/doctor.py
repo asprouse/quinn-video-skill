@@ -220,6 +220,11 @@ def check_defaults() -> Iterable[Check]:
 # `build` does not demand a HeyGen key it will never use, and `narrate` does
 # not demand ffmpeg.
 NEEDS: dict[str, tuple[str, ...]] = {
+    # init checks the whole pipeline, not its own needs. There is no point
+    # starting a run that cannot finish, and finding out after the script is
+    # written wastes the one thing a preflight is supposed to protect: the
+    # user's time. `--draft` bypasses it for writing offline.
+    "init": ("ffmpeg", "fonts", "heygen", "pexels"),
     "narrate": ("heygen",),
     "avatar": ("heygen",),
     "probe": ("heygen",),
@@ -258,7 +263,7 @@ def _capability_checks(capability: str, keys: Keys) -> list[Check]:
     return []
 
 
-def preflight(command: str) -> None:
+def preflight(command: str, *, bypass: bool = False) -> None:
     """Refuse to start a stage that cannot finish.
 
     Without this a missing key surfaces as a ConfigError several stages in,
@@ -266,7 +271,7 @@ def preflight(command: str) -> None:
     the expensive calls have already been made. These checks are local and
     take milliseconds, so there is no reason not to run them every time.
     """
-    if os.environ.get("QUINN_SKIP_PREFLIGHT"):
+    if bypass or os.environ.get("QUINN_SKIP_PREFLIGHT"):
         return
 
     needs = NEEDS.get(command, ())
@@ -283,12 +288,20 @@ def preflight(command: str) -> None:
     if not failed:
         return
 
-    lines = [f"`{command}` cannot run yet:"]
+    if command == "init":
+        lines = ["Nothing in this pipeline can run yet:"]
+    else:
+        lines = [f"`{command}` cannot run yet:"]
     lines += [
         f"  {FAIL} {check.name:<20} {_CAPABILITY_FIX.get(capability, check.detail)}"
         for capability, check in failed
     ]
     lines.append("\nRun `quinn-video doctor` for the full picture.")
+    if command == "init":
+        lines.append(
+            "Fix these before writing a script — a storyboard you cannot render "
+            "is wasted work.\nTo draft one anyway, pass --draft."
+        )
     raise NotReadyError("\n".join(lines))
 
 

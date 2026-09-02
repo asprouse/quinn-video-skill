@@ -29,7 +29,17 @@ $QV doctor
 ```
 
 `doctor` checks ffmpeg, the typefaces, the credentials, and the HeyGen balance.
-Fix blockers before continuing — every paid call is downstream of it.
+
+**If it reports blockers, stop here and say so. Do not write a storyboard.**
+Report the blockers, the exact fix, and nothing else. `init` will refuse
+anyway, but the point is to tell the user in ten seconds rather than after
+two minutes of work they did not ask for and may not be able to use.
+
+Writing the script first is tempting because it is free — but free is not the
+same as costless. It spends the user's attention on a plan they cannot run,
+and buries the one thing blocking them under a wall of text. Ask whether they
+want a draft while they find the keys; do not assume it. If they say yes,
+`init --draft` skips the check.
 
 Every other command also preflights what *it* needs and refuses to start
 otherwise, so a missing key stops the run immediately rather than several

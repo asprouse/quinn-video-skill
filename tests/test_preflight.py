@@ -85,3 +85,27 @@ def test_every_paid_stage_is_covered():
     """Anything that spends money must be in the table."""
     for command in ("narrate", "avatar", "probe", "candidates"):
         assert doctor.NEEDS.get(command), f"{command} has no preflight"
+
+
+def test_init_checks_the_whole_pipeline_not_just_itself(monkeypatch):
+    """A run that cannot finish should not be started.
+
+    Regression: a real run found the credentials missing, wrote a full
+    storyboard anyway, and reported the blocker two and a half minutes later.
+    """
+    only_toolchain = Keys(heygen=None, pexels=None, pixabay=None, fal=None, replicate=None)
+
+    with pytest.raises(doctor.NotReadyError) as caught:
+        _run("init", only_toolchain, monkeypatch)
+
+    message = str(caught.value)
+    assert "HEYGEN_API_KEY" in message
+    assert "PEXELS_API_KEY" in message
+    assert "wasted work" in message
+    assert "--draft" in message
+
+
+def test_draft_bypasses_the_init_check(monkeypatch):
+    monkeypatch.setattr(doctor.Keys, "load", classmethod(lambda _cls: NONE))
+
+    doctor.preflight("init", bypass=True)

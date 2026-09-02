@@ -56,6 +56,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     init = sub.add_parser("init", help="create a run directory for a topic")
     init.add_argument("topic")
+    init.add_argument(
+        "--draft",
+        action="store_true",
+        help="write a storyboard without the credentials to render it",
+    )
 
     check = sub.add_parser("check", help="validate a storyboard and report its pacing")
     check.add_argument("--run")
@@ -121,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         # Every stage states what it needs and stops here if it is missing,
         # rather than failing partway through with the expensive calls already
         # made. Set QUINN_SKIP_PREFLIGHT to bypass.
-        doctor.preflight(args.command)
+        doctor.preflight(args.command, bypass=getattr(args, "draft", False))
         return _dispatch(args)
     except doctor.NotReadyError as exc:
         print(f"\n{exc}\n", file=sys.stderr)
