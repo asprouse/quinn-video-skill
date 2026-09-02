@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import ff
-from .config import FPS, HEIGHT, WIDTH
+from .config import FPS, HEIGHT, TAIL_SECONDS, WIDTH
 
 
 @dataclass
@@ -79,6 +79,14 @@ class Composition:
     # 0 dBFS with wildly different spectral balance, so a fixed gain means a
     # different thing every time.
     music_lufs: float = -32.0
+    # How long the last frame is held after the final syllable.
+    #
+    # It was 0.2s, which is not a choice -- it is where the narration
+    # happened to stop. The line had no room to land and the bed was cut
+    # mid-phrase at full level, which is most of what read as an abrupt
+    # ending. It matters twice over because these autoplay in a loop: the
+    # hold is the beat between the payoff and the hook coming round again.
+    tail: float = TAIL_SECONDS
 
 
 # --- pass one: the b-roll base -------------------------------------------
@@ -191,6 +199,8 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     """Lay avatar, captions, and audio over the base track."""
     args = ["-i", str(base)]
     index = 1
+    tail = max(0.0, comp.tail)
+    total = comp.duration + tail
 
     avatar_index = None
     if comp.avatar:
@@ -218,6 +228,9 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
 
     chains: list[str] = []
     current = "[0:v]"
+    if tail:
+        chains.append(f"[0:v]tpad=stop_mode=clone:stop_duration={tail:.3f}[held]")
+        current = "[held]"
 
     if avatar_index is not None:
         # Crop to where the presenter actually is before scaling. The render
@@ -229,9 +242,12 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
         for n, stage in enumerate(comp.stages or default_stages(comp.duration)):
             x, y = stage.position()
             nxt = f"[av{n}]"
+            end = stage.end + (
+                tail if stage is (comp.stages or default_stages(comp.duration))[-1] else 0.0
+            )
             chains.append(
                 f"{current}[avs{n}]overlay=x={x}:y={y}:"
-                f"enable='between(t,{stage.start:.3f},{stage.end:.3f})'"
+                f"enable='between(t,{stage.start:.3f},{end:.3f})'"
                 f":eof_action=pass{nxt}"
             )
             current = nxt
@@ -241,7 +257,7 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     else:
         chains.append(f"{current}null[vout]")
 
-    chains.append(_audio_chain(narration_index, music_index, comp.music_lufs))
+    chains.append(_audio_chain(narration_index, music_index, comp.music_lufs, comp.duration, tail))
 
     ff.run(
         [
@@ -253,7 +269,7 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
             "-map",
             "[aout]",
             "-t",
-            f"{comp.duration:.3f}",
+            f"{total:.3f}",
             "-c:v",
             "libx264",
             "-preset",
@@ -338,13 +354,29 @@ def stage_rect(stage: Stage, avatar: Path | None) -> list[int]:
     return [x, HEIGHT - height - floor, width, height]
 
 
-def _audio_chain(narration_index: int, music_index: int | None, music_lufs: float) -> str:
+def _audio_chain(
+    narration_index: int,
+    music_index: int | None,
+    music_lufs: float,
+    duration: float,
+    tail: float,
+) -> str:
     """Narration at the front, music ducked underneath, output to broadcast loudness."""
+    # The mix used to end with the narration, which cut the bed off
+    # mid-phrase at full level. Padding the voice with silence lets the hold
+    # carry real sound, and the bed resolves into it instead of stopping.
+    lead = f"apad=pad_dur={tail:.3f}," if tail else ""
+
     if music_index is None:
-        return f"[{narration_index}:a]loudnorm=I=-14:TP=-1.5:LRA=11[aout]"
+        return f"[{narration_index}:a]{lead}loudnorm=I=-14:TP=-1.5:LRA=11[aout]"
+
+    # Begin the fall just before the last syllable so the bed is already
+    # receding when the line lands, rather than dropping out after it.
+    fade_start = max(0.0, duration - 0.35)
+    fade_len = tail + 0.35 if tail else 0.35
 
     return (
-        f"[{narration_index}:a]asplit=2[vo][key];"
+        f"[{narration_index}:a]{lead}asplit=2[vo][key];"
         f"[{music_index}:a]"
         # Generated beds cannot be trusted to stay out of the way. One came
         # back with 38% of its energy in 2-6 kHz -- exactly the band that
@@ -359,7 +391,8 @@ def _audio_chain(narration_index: int, music_index: int | None, music_lufs: floa
         f"lowpass=f=7000,"
         # Normalise to an absolute level so the bed sits in the same place
         # whatever the generator hands back.
-        f"loudnorm=I={music_lufs}:TP=-9:LRA=7[bed];"
+        f"loudnorm=I={music_lufs}:TP=-9:LRA=7,"
+        f"afade=t=out:st={fade_start:.3f}:d={fade_len:.3f}[bed];"
         # Sidechain the bed against the voice so the music breathes in the
         # gaps instead of sitting at a constant level under the whole track.
         f"[bed][key]sidechaincompress=threshold=0.03:ratio=12:attack=8:release=320[duck];"

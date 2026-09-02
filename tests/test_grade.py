@@ -155,3 +155,24 @@ def test_layers_that_agree_with_the_narration_pass(tmp_path, monkeypatch):
     monkeypatch.setattr(grade_module.ff, "duration", lambda p: durations[p])
 
     assert _layer_findings(run, 39.08) == []
+
+
+def test_a_held_final_frame_is_not_a_sync_error(tmp_path, monkeypatch):
+    """Regression: the video holds its last frame past the final syllable, so
+    measuring the layers against the finished runtime reported every one of
+    them as a second short. They are cut to the narration, not the file."""
+    from quinnvideo import grade as grade_module
+    from quinnvideo.grade import _layer_findings
+    from quinnvideo.runs import Run
+
+    run = Run(tmp_path / "run")
+    run.overlay.parent.mkdir(parents=True, exist_ok=True)
+    for path in (run.avatar, run.overlay, run.base):
+        path.write_text("x")
+
+    narration, runtime = 31.74, 32.44  # 0.7s hold
+    durations = {run.avatar: 31.77, run.overlay: 31.72, run.base: 31.53}
+    monkeypatch.setattr(grade_module.ff, "duration", lambda p: durations[p])
+
+    assert _layer_findings(run, narration) == []
+    assert _layer_findings(run, runtime)  # what the old reference did

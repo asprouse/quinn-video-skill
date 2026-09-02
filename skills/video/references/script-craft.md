@@ -156,6 +156,35 @@ Every beat should be *filmable*. If you cannot picture the shot, the b-roll
 stage will not find one either — and the `visual.intent` you write is what
 the footage gets judged against.
 
+## Write for the loop
+
+Short-form autoplays. The video restarts the moment it ends, so the last line
+is followed immediately by the first — and that seam is either deliberate or
+it reads as a glitch and gets swiped.
+
+Two rules, both free:
+
+- **The closing line hands back to the hook.** Not a cliffhanger and not a
+  repeat: a resolution that leaves the opening question sounding worth asking
+  again. "Thirty seconds of setup. That is the whole job." into "How high do
+  you have to be for a ladder to kill you?" reads as intentional. The
+  question-refused hook is well suited to this — a loop back into a question
+  feels like structure rather than an accident.
+- **The closing shot echoes the opening one.** Same subject, corrected. A
+  badly-set ladder opens and a correctly-set one closes; a load held at arm's
+  length opens and one held close finishes. The rhyme does the work of an
+  ending without needing a title card.
+
+What not to do: chase a *seamless* loop, where the join is meant to be
+invisible. That works for ambient footage and not for a narrated explainer —
+a human voice restarting mid-thought is always audible, and hiding the seam
+means giving up the payoff. End the video properly; just end it somewhere the
+hook can follow.
+
+The compositor already holds the last frame and resolves the bed under it, so
+the beat between payoff and hook is there. These rules are about making that
+beat land on something.
+
 ## Safety-training specifics
 
 These videos teach people how not to get hurt. Accuracy is not a nice-to-have.

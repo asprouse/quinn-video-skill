@@ -49,6 +49,24 @@ All notable changes to this project are documented here. This project follows
   options before the script is written, rather than chosen and then explained.
 
 ### Fixed
+- **Videos no longer end abruptly.** The last frame was held for 0.2s after
+  the final syllable — not a choice, just where the narration stopped — and
+  the music bed was cut mid-phrase at full level. The closing frame is now
+  held (`QUINN_TAIL`, default 0.7s) with the bed fading out across it, which
+  also gives the loop a beat: short-form autoplays, so that seam is either
+  deliberate or it reads as a glitch. `script-craft.md` adds two rules for
+  writing into it.
+- **Voice speed is a property of the run, not the environment.**
+  `QUINN_VOICE_SPEED` was global, so setting it for one script silently
+  re-cut every other run in the workspace the next time they were built —
+  one ended up with narration eight seconds longer than its avatar. The
+  speed a run was narrated at is now recorded in its state and reused.
+- **The avatar cache key survives a re-synthesis.** It hashed the audio URL,
+  which is new every time even when the words and voice are identical, so any
+  narration cache miss forced a paid re-render. It now keys on the transcript.
+- **`grade` measures layers against the narration, not the runtime.** With a
+  held final frame, comparing them to the finished file reported every layer
+  as a second short.
 - **Artifacts are cached on their inputs, not their existence.** Every
   expensive stage skipped its work whenever its output file was present,
   which is right for a retry and wrong for iterating on a run in place. Two

@@ -144,6 +144,11 @@ MOTION_PROMPT = os.environ.get("QUINN_MOTION_PROMPT") or (
 # pipeline -- bounded by how long a shot can hold before it reads as static.
 MAX_SHOT = float(os.environ.get("QUINN_MAX_SHOT") or 7.0)
 
+# How long the last frame is held after the final syllable, in seconds.
+# Short-form autoplays in a loop, so this is both the room the closing line
+# needs to land and the beat before the hook comes round again.
+TAIL_SECONDS = float(os.environ.get("QUINN_TAIL") or 0.7)
+
 # Measured, not assumed. Two full scripts through the configured voice at
 # VOICE_SPEED came back at 178 and 165 wpm, so 170 is the honest figure; the
 # earlier 198 came from a single short line and made `check` underestimate

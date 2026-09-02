@@ -45,7 +45,15 @@ def narrate(
     both reused unless explicitly forced.
     """
     voice_id = voice_id or require("QUINN_VOICE_ID", "narration")
-    speed = VOICE_SPEED if speed is None else speed
+    # Speed is a property of *this* run, not of the environment. It lived in
+    # QUINN_VOICE_SPEED, so setting it for one script silently re-cut every
+    # other run in the workspace the next time they were touched -- one of
+    # them ended up with narration eight seconds longer than its avatar.
+    # Whatever a run was narrated at is what it stays at, unless overridden.
+    if speed is None:
+        speed = run.state().get("voice_speed")
+    if speed is None:
+        speed = VOICE_SPEED
 
     key = cache.fingerprint(board.narration, voice_id, speed)
     if cache.reuse(run.audio, key, force=force) and run.speech_path.exists():
@@ -59,6 +67,7 @@ def narrate(
     run.speech_path.write_text(json.dumps(speech.to_dict(), indent=2), encoding="utf-8")
     download(speech.audio_url, run.audio)
     cache.mark(run.audio, key)
+    run.update_state(voice_speed=speed, voice_id=voice_id)
     rate = len(speech.words) / speech.duration * 60 if speech.duration else 0
     log(f"narration: {speech.duration:.1f}s, {len(speech.words)} words, {rate:.0f} wpm")
     if not SLOW_WPM <= rate <= FAST_WPM:
@@ -81,8 +90,15 @@ def narrate(
 
 
 def _avatar_fingerprint(speech: Speech, avatar_id: str) -> str:
-    """What the render was made from: this audio, this presenter, this motion."""
-    return cache.fingerprint(speech.audio_url, avatar_id, MOTION_PROMPT)
+    """What the render was made from: these words, this presenter, this motion.
+
+    Keyed on the transcript rather than the audio URL. The URL is new on every
+    synthesis even when the words and the voice are identical, so keying on it
+    forced a paid re-render after any narration cache miss -- including ones
+    that produced the very same audio.
+    """
+    spoken = " ".join(w.word for w in speech.words)
+    return cache.fingerprint(spoken, round(speech.duration, 2), avatar_id, MOTION_PROMPT)
 
 
 def _avatar_key(run: Run, speech: Speech) -> str:

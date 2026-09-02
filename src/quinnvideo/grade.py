@@ -272,7 +272,10 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
     report.findings.extend(_staging_findings(run, words))
     report.findings.extend(_footage_findings(run))
-    report.findings.extend(_layer_findings(run, duration))
+    # Against the narration, not the finished file. The video now holds its
+    # last frame past the final syllable, so measuring the layers against the
+    # whole runtime reports every one of them as a second short.
+    report.findings.extend(_layer_findings(run, _narration_seconds(run) or duration))
 
     # The first two seconds decide everything, so they get their own check.
     opening = [f for f in report.frames if f["at"] <= 2.0]
@@ -289,6 +292,16 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
 
     log(f"grade: {len(report.blockers)} blockers, {len(report.findings)} findings")
     return report
+
+
+def _narration_seconds(run: Run) -> float | None:
+    """How long the voice actually speaks, which is what the layers are cut to."""
+    if not run.speech_path.exists():
+        return None
+    try:
+        return float(json.loads(run.speech_path.read_text(encoding="utf-8"))["duration"])
+    except (ValueError, KeyError, OSError):
+        return None
 
 
 def _layer_findings(run: Run, duration: float) -> list[Finding]:
