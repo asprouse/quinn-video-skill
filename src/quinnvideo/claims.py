@@ -243,3 +243,55 @@ def ledger(board: Storyboard) -> str:
         if claim.note.strip():
             lines.append(f"                 note:   {claim.note}")
     return "\n".join(lines)
+
+
+def check_sources(board: Storyboard, *, log=lambda _: None) -> list[Issue]:
+    """Check the ledger's CFR citations against the regulations they name.
+
+    Only the citation's *existence* is mechanical, and only that is reported
+    as a finding. Whether the text supports the claim is a reading question,
+    so the text is printed rather than judged -- the failure this guards
+    against is a real citation attached to a claim it does not support, and
+    nothing but reading catches that.
+    """
+    from . import cfr
+
+    issues: list[Issue] = []
+    checked = 0
+
+    for claim in board.claims:
+        for citation in cfr.parse_citations(claim.source):
+            checked += 1
+            try:
+                head, paras = cfr.section(citation, log=log)
+            except cfr.CFRError as error:
+                issues.append(
+                    Issue(
+                        "blocker",
+                        claim.beat,
+                        f"beat {claim.beat} cites {citation}, which does not resolve: {error}",
+                        "correct the citation, or drop it and mark the claim unverified",
+                    )
+                )
+                continue
+
+            wanted = citation.subdivisions
+            shown = [p for p in paras if p.path[: len(wanted)] == wanted] if wanted else paras
+            log(f"\nbeat {claim.beat}: {claim.text}")
+            log(f"  cited as {citation} — {head}")
+            if wanted and not shown:
+                issues.append(
+                    Issue(
+                        "warn",
+                        claim.beat,
+                        f"{citation} names a subdivision that is not in that section",
+                        "check the paragraph letters; the section itself does exist",
+                    )
+                )
+                shown = paras[:3]
+            for para in shown[:6]:
+                log(f"    {para.text[:300]}")
+
+    if not checked:
+        log("no CFR citations in this ledger to check.")
+    return issues
