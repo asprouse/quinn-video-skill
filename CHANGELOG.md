@@ -3,7 +3,46 @@
 All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] — 2026-09-03
+
+### Fixed — found by generating ten videos outside the three brief topics
+- **`doctor` rejected a working voice.** It validated `QUINN_VOICE_ID` against
+  a voice listing capped at 400 entries; a real voice sitting past position
+  400 of 2,236 was reported as unusable. It now looks the voice up directly.
+- **The claims ledger blocked on sentence furniture** — "the two cancel",
+  "every year, the same slice" — which cost the check its signal. A lone
+  number only counts as a claim when something is measured by it.
+- **One bad generated frame aborted the whole run**, discarding every other
+  beat's footage. Generation failure now falls back to a designed card, the
+  same as everywhere else in the fallback ladder.
+- **A fifth of generated shots came back near-black.** `grade` now warns when
+  more than 30% of a video sits under 16% brightness, and
+  `visual-language.md` explains that "dark background" in a prompt is what
+  causes it.
+- **Every video shipped under target loudness** (−15.5 to −16.8 LUFS against
+  −14). The mix's high crest factor meant `loudnorm` alone could not reach
+  target without clipping; a compression pass ahead of normalising narrows
+  this to −14.6 to −15.4 LUFS.
+
+### Fixed — release readiness
+- `doctor`'s hint and the matting error both still pointed at
+  `--list-avatars`, a flag removed when avatar selection moved to
+  `presenters <heygen-url>`.
+- Removed `REPLICATE_API_TOKEN` and the `Keys.replicate` field: read at
+  startup, never consumed anywhere, and documenting it in `.env.example`
+  would have implied it did something.
+- `.env.example` now documents every tunable `config.py` reads — it covered
+  8 of the 15; the other 7 were discoverable only by reading the source.
+
+### Documented
+- **Why "the presenter covers the shot's subject" is not an automated
+  check.** One was built and calibrated against a real instance — a
+  forklift-safety video staging the presenter's head over the driver's face
+  on the line "make eye contact with the driver" — and it missed that exact
+  case while flagging five of nine videos with no problem at all. Edge
+  density cannot tell a face from a tool mat's texture; only a reader can.
+  `SKILL.md` now names this explicitly at the point where a human is
+  already looking at the frames.
 
 ### Added
 - **A claims ledger on the storyboard.** Nothing in this pipeline checked

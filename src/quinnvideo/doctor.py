@@ -207,7 +207,7 @@ def check_defaults() -> Iterable[Check]:
         bool(avatar and voice),
         f"{avatar} / {voice}"
         if avatar and voice
-        else "unset — pick with `quinn-video doctor --list-avatars`",
+        else "unset — pick with `quinn-video presenters <heygen-url>`",
         fatal=False,
     )
 

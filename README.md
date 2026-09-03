@@ -42,8 +42,16 @@ $QV doctor                                      # toolchain, credentials, balanc
 ```
 
 `doctor` runs before anything that costs money, and reports the HeyGen balance
-and how many renders it affords. Pick a presenter with `--list-avatars` and
-`--list-voices`, and put the ids in `.env`.
+and how many renders it affords. Pick a presenter by pasting a link from
+[HeyGen's own avatar library](https://app.heygen.com/avatars):
+
+```bash
+$QV presenters <url>       # narrows a library link down to one look
+$QV presenters --use 4     # sets it, by the number printed above
+$QV doctor --list-voices   # pick a voice the same way
+```
+
+Both get written to `.env` for you.
 
 Everything the run produces — `runs/`, footage, the scorecard — lands beside
 your project. Only the code lives in the plugin.

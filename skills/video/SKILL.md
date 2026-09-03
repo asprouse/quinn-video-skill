@@ -392,9 +392,20 @@ It cannot tell you whether the video is *engaging*. So then do the part it
 cannot: **view the sampled frames in `<run>/frames/`** and score against
 `references/engagement-rubric.md`. Then repair:
 
-- **Visual problems** (wrong shot, caption over a busy area, shot too long) —
-  re-pick footage, re-run `fetch`, then `build`. Free. The base track is keyed
-  on the cut list, so a swapped clip rebuilds automatically.
+- **Visual problems** (wrong shot, caption over a busy area, shot too long,
+  **the presenter's cutout sitting over the shot's own subject**) — re-pick
+  footage, re-run `fetch`, then `build`. Free. The base track is keyed on the
+  cut list, so a swapped clip rebuilds automatically.
+
+  The presenter-over-subject case is worth naming, because no automated check
+  catches it and one was tried: edge density under the cutout versus the rest
+  of the frame, on the theory that a face or a focal object concentrates
+  detail. Calibrated against a real instance — the presenter's head landing on
+  a forklift driver's face on the line "make eye contact with the driver" —
+  it missed that exact case and flagged five of nine videos with no problem
+  at all. A frame full of tool-mat texture or a tyre tread reads as "busy" to
+  an edge detector exactly the way a face does; only a reader knows which one
+  is the point of the shot. So this is a look, not a threshold.
 - **Script problems** (weak hook, dead air, rushed explanation) — these need a
   re-`narrate` and re-`avatar`, which costs credits again. Tell the user the
   cost before doing it.

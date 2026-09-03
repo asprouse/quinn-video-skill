@@ -12,8 +12,8 @@ import pytest
 from quinnvideo import doctor
 from quinnvideo.config import Keys
 
-FULL = Keys(heygen="h", pexels="p", pixabay=None, fal="f", replicate=None)
-NONE = Keys(heygen=None, pexels=None, pixabay=None, fal=None, replicate=None)
+FULL = Keys(heygen="h", pexels="p", pixabay=None, fal="f")
+NONE = Keys(heygen=None, pexels=None, pixabay=None, fal=None)
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +38,7 @@ def test_narrate_without_a_heygen_key_stops_immediately(monkeypatch):
 def test_broll_asks_for_pexels_not_heygen(monkeypatch):
     """Each stage checks only what it uses; build should never demand a
     HeyGen key it will not touch."""
-    only_heygen = Keys(heygen="h", pexels=None, pixabay=None, fal=None, replicate=None)
+    only_heygen = Keys(heygen="h", pexels=None, pixabay=None, fal=None)
 
     with pytest.raises(doctor.NotReadyError, match="PEXELS_API_KEY"):
         _run("broll", only_heygen, monkeypatch)
@@ -95,7 +95,7 @@ def test_init_checks_the_whole_pipeline_not_just_itself(monkeypatch):
     Regression: a real run found the credentials missing, wrote a full
     storyboard anyway, and reported the blocker two and a half minutes later.
     """
-    only_toolchain = Keys(heygen=None, pexels=None, pixabay=None, fal=None, replicate=None)
+    only_toolchain = Keys(heygen=None, pexels=None, pixabay=None, fal=None)
 
     with pytest.raises(doctor.NotReadyError) as caught:
         _run("init", only_toolchain, monkeypatch)

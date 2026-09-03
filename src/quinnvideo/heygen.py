@@ -167,7 +167,7 @@ class HeyGen:
             return MattingUnsupportedError(
                 f"This avatar does not support transparent output: {message}\n"
                 "Pick a more recently created avatar "
-                "(`quinn-video doctor --list-avatars`), or render opaque."
+                "(`quinn-video presenters <heygen-url>`), or render opaque."
             )
         return HeyGenError(f"HTTP {response.status_code}: {message}")
 

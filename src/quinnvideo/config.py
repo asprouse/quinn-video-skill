@@ -186,7 +186,6 @@ class Keys:
     pexels: str | None
     pixabay: str | None
     fal: str | None
-    replicate: str | None
 
     @classmethod
     def load(cls) -> Keys:
@@ -195,5 +194,4 @@ class Keys:
             pexels=env("PEXELS_API_KEY"),
             pixabay=env("PIXABAY_API_KEY"),
             fal=env("FAL_KEY"),
-            replicate=env("REPLICATE_API_TOKEN"),
         )
