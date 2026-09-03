@@ -138,6 +138,12 @@ td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .flow .brace{fill:none;stroke:var(--rule);stroke-width:1.2}
 .flow .clock{fill:none;stroke:var(--gold);stroke-width:1.2;stroke-dasharray:3 5;opacity:.75}
 
+.buildhint{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;color:var(--dim);
+  margin:1.1rem 0 0;min-height:1.2em;transition:opacity .3s;
+}
+.buildhint.done{opacity:0}
+
 /* chrome */
 .hud{position:fixed;left:0;right:0;bottom:0;height:4px;background:#ffffff10;z-index:20}
 .hud b{display:block;height:100%;width:0;background:var(--gold);transition:width .25s ease}
@@ -496,12 +502,31 @@ document.getElementById('tot').textContent = slides.length;
 // diagram builds under the same key that advances everything else.
 const builds = slides.map(s => [...s.querySelectorAll('[data-step]')]
   .sort((a, b) => a.dataset.step - b.dataset.step));
-const at = slides.map(() => 0);
+// A build slide always shows its first stage. Starting at zero left the
+// slide as a heading over blank space, which reads as a broken page rather
+// than as one waiting for a keypress.
+const first = i => Math.min(1, builds[i].length);
+const at = slides.map((_, i) => first(i));
+
+// A slide that assembles has to say so, or it just looks like a slide with
+// most of it missing.
+const ticker = slides.map((s, i) => {
+  if (!s.querySelectorAll('[data-step]').length) return null;
+  const el = document.createElement('p');
+  el.className = 'buildhint';
+  s.querySelector('.inner').appendChild(el);
+  return el;
+});
 
 function paint(i) {
   builds[i].forEach((g, n) => g.classList.toggle('shown', n < at[i]));
+  const t = ticker[i];
+  if (!t) return;
+  const done = at[i] >= builds[i].length;
+  t.textContent = done ? '' : `space to build · ${at[i]} / ${builds[i].length}`;
+  t.classList.toggle('done', done);
 }
-function fill(i, all) { at[i] = all ? builds[i].length : 0; paint(i); }
+function fill(i, all) { at[i] = all ? builds[i].length : first(i); paint(i); }
 
 let index = 0;
 function mark(i) {
@@ -536,7 +561,7 @@ function forward() {
   go(index + 1);
 }
 function back() {
-  if (at[index] > 0) { at[index]--; paint(index); return; }
+  if (at[index] > first(index)) { at[index]--; paint(index); return; }
   go(index - 1);
 }
 
@@ -559,6 +584,8 @@ deck.addEventListener('click', e => {
   if (e.target.closest('a, video, button')) return;
   if (builds[index].length && at[index] < builds[index].length) forward();
 });
+
+slides.forEach((_, i) => paint(i));
 
 const hint = document.getElementById('hint');
 setTimeout(() => { hint.style.opacity = '0'; }, 4600);
