@@ -204,6 +204,35 @@ subject.
 Prompts are saved next to each image as a `.txt`, so a reviewer can see what was
 asked for and judge the result against it.
 
+## Keep the frame lit
+
+Generated stills come back far darker than the prompt implies. Across ten test
+videos, **13 of 60 shots** landed under a fifth of full brightness and one
+video spent 39% of its length essentially unlit — legible, because the captions
+carry a stroke, but it reads as a video that has broken rather than one that is
+being atmospheric.
+
+The cause is prompt language. "Dark background", "deep shadows", "dramatic
+single light source", "moody" and "black background" all reliably produce a
+frame with almost nothing in it.
+
+- **Say what is lit, not what is dark.** "A brass coin on a grey studio
+  sweep, soft key from the left" rather than "a coin in dramatic light on a
+  dark background".
+- **At most one dark shot per video**, and never two in a row. `grade` warns
+  when more than 30% of the runtime is under 16% brightness.
+- A dark shot behind the presenter is the worst case: the cutout has no edge
+  to sit against and the whole frame goes flat.
+
+## Text in a generated image will be wrong
+
+The model cannot spell reliably. A shot of a URL bar came back reading
+`www.com.alerss`, in a video whose whole point was reading domains carefully.
+
+So never rely on generated text to carry meaning. If the words matter, put
+them in an `overlay` — that is typeset, correct, and cued to the narration.
+Generated imagery is for the scene around the words.
+
 ## Annotating a real photograph
 
 Better than cutting away to a drawing on black: draw the rule onto an actual

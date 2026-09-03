@@ -47,6 +47,11 @@ MAX_SHOT = 4.0
 
 SAMPLE_INTERVAL = 0.5
 
+# Brightness below which a shot reads as unlit rather than moody, and the
+# share of a video that may sit there before it stops looking deliberate.
+MURKY = 0.16
+MURKY_SHARE = 0.30
+
 
 @dataclass
 class Finding:
@@ -276,6 +281,26 @@ def grade(run: Run, *, log=lambda _: None) -> Report:
     # last frame past the final syllable, so measuring the layers against the
     # whole runtime reports every one of them as a second short.
     report.findings.extend(_layer_findings(run, _narration_seconds(run) or duration))
+
+    # A run of murky shots is not a black frame and not a hook problem, so
+    # neither existing check saw it: across ten test videos, 13 of 60
+    # generated shots came back under a fifth of full brightness, and one
+    # video spent half its length essentially unlit. Legible, because the
+    # captions have a stroke -- but it reads as a video that has broken.
+    body = [f for f in report.frames if f["brightness"] < MURKY]
+    if report.frames and len(body) / len(report.frames) > MURKY_SHARE:
+        worst = min(body, key=lambda f: f["brightness"])
+        report.findings.append(
+            Finding(
+                "warn",
+                worst["at"],
+                "murky",
+                f"{len(body) / len(report.frames):.0%} of the video is under "
+                f"{MURKY:.0%} brightness, darkest at {worst['at']:.1f}s",
+                "generated stills come back very dark when the prompt asks for a dark "
+                "background — say what is lit instead, and keep at most one dark shot",
+            ),
+        )
 
     # The first two seconds decide everything, so they get their own check.
     opening = [f for f in report.frames if f["at"] <= 2.0]

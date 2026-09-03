@@ -177,22 +177,21 @@ def check_heygen_live(keys: Keys) -> Iterable[Check]:
             voice_id = config.env("QUINN_VOICE_ID")
             if voice_id:
                 # The speech endpoint only accepts starfish voices, and only
-                # starfish returns the word timestamps everything downstream
-                # is timed against.
-                match = next(
-                    (
-                        v
-                        for v in client.voices(engine="starfish", max_items=400)
-                        if (v.get("id") or v.get("voice_id")) == voice_id
-                    ),
-                    None,
+                # those return the word timestamps everything else is cut
+                # from. Looked up directly: scanning the listing capped at a
+                # few hundred entries reported a working voice as invalid
+                # because it sat at position 400-odd of 2,236.
+                found = client.voice(voice_id)
+                engines = (found or {}).get("supported_engines") or []
+                usable = bool(found) and (
+                    not engines or any("starfish" in str(e).lower() for e in engines)
                 )
                 yield Check(
                     "configured voice",
-                    bool(match),
-                    f"{match.get('name', '?')} — starfish, word timestamps supported"
-                    if match
-                    else f"{voice_id} is not a starfish voice — captions cannot be timed",
+                    usable,
+                    f"{(found or {}).get('name', '?')} — word timestamps supported"
+                    if usable
+                    else f"{voice_id} is not a usable voice — captions cannot be timed",
                 )
     except HeyGenError as exc:
         yield Check("heygen api", False, str(exc).splitlines()[0])

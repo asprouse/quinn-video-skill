@@ -271,6 +271,7 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     if args.command == "broll":
         from . import broll, pipeline
+        from .generate import GenerationError
 
         run = _resolve_run(args.run)
         board = run.storyboard()
@@ -300,6 +301,7 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     if args.command == "fetch":
         from . import broll, pipeline
+        from .generate import GenerationError
 
         run = _resolve_run(args.run)
         path = Path(args.picks) if args.picks else run.directory / "picks.json"
@@ -354,14 +356,37 @@ def _dispatch(args: argparse.Namespace) -> int:
                 )
             if entry.get("generate"):
                 prompt = entry["generate"]
-                shot = broll.generate_shot(
-                    run,
-                    by_id[beat_id],
-                    prompt if isinstance(prompt, str) else None,
-                    variant=entry.get("variant"),
-                    model=entry.get("model"),
-                    log=_log,
-                )
+                try:
+                    shot = broll.generate_shot(
+                        run,
+                        by_id[beat_id],
+                        prompt if isinstance(prompt, str) else None,
+                        variant=entry.get("variant"),
+                        model=entry.get("model"),
+                        log=_log,
+                    )
+                except GenerationError as exc:
+                    # A prompt the model will not draw cleanly is a bad shot,
+                    # not a broken run. The fallback ladder ends in a designed
+                    # card for exactly this, and losing five good beats
+                    # because the sixth would not render is the wrong trade.
+                    _log(f"beat {beat_id}: {exc}")
+                    _log(f"beat {beat_id}: falling back to a designed card")
+                    cards.append(beat_id)
+                    return (
+                        beat_id,
+                        slot,
+                        [
+                            broll.fallback_card(
+                                run,
+                                by_id[beat_id],
+                                duration=window[1],
+                                start=window[0],
+                                words=words,
+                                log=_log,
+                            )
+                        ],
+                    )
                 if entry.get("annotate"):
                     shot = broll.annotate_shot(
                         run,

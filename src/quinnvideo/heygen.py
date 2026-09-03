@@ -225,6 +225,18 @@ class HeyGen:
         except HeyGenError:
             return None
 
+    def voice(self, voice_id: str) -> dict[str, Any] | None:
+        """Look up one voice directly.
+
+        Searching the listing instead was wrong twice over: it is 2,236
+        entries long, and any cap short enough to be quick reports a
+        perfectly good voice as invalid because it sits past the cut.
+        """
+        try:
+            return self._request("GET", f"/v3/voices/{voice_id}").get("data")
+        except HeyGenError:
+            return None
+
     def voices(
         self, engine: str = "starfish", *, max_items: int | None = None, **filters: Any
     ) -> list[dict[str, Any]]:

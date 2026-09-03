@@ -36,6 +36,16 @@ def run(args: Sequence[str], *, quiet: bool = True) -> None:
         raise FFmpegError(f"ffmpeg failed ({result.returncode}):\n{tail}\n\ncmd: {' '.join(cmd)}")
 
 
+def run_capture(args: Sequence[str]) -> str:
+    """Run ffmpeg and return its log, for filters that report through stderr."""
+    cmd = [binary(), "-hide_banner", "-nostdin", "-y", *args]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        tail = "\n".join(result.stderr.strip().splitlines()[-25:])
+        raise FFmpegError(f"ffmpeg failed ({result.returncode}):\n{tail}")
+    return result.stderr
+
+
 def probe(path: Path) -> dict[str, Any]:
     result = subprocess.run(
         [

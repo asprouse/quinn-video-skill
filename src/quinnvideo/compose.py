@@ -10,6 +10,7 @@ rebuild only the visual half without re-paying HeyGen for narration.
 from __future__ import annotations
 
 import shlex
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -87,6 +88,14 @@ class Composition:
     # ending. It matters twice over because these autoplay in a loop: the
     # hold is the beat between the payoff and the hook coming round again.
     tail: float = TAIL_SECONDS
+
+
+# Gentle compression ahead of normalisation. Speech has a high crest factor,
+# so the mix measured -18.9 LUFS integrated against a true peak near zero:
+# loudnorm could not lift it to target without clipping, and every one of ten
+# test videos shipped between -15.5 and -16.8, up to three decibels under what
+# the platforms normalise to. Evening the peaks first buys the headroom.
+EVEN = "acompressor=threshold=-20dB:ratio=2.5:attack=8:release=150"
 
 
 # --- pass one: the b-roll base -------------------------------------------
@@ -257,7 +266,15 @@ def build_final(comp: Composition, base: Path, dest: Path) -> Path:
     else:
         chains.append(f"{current}null[vout]")
 
-    chains.append(_audio_chain(narration_index, music_index, comp.music_lufs, comp.duration, tail))
+    # Measure the mix, then apply an exact gain rather than an estimated one.
+    chains.append(
+        _mastered(
+            [*args, "-t", f"{total:.3f}"],
+            lambda norm: _audio_chain(
+                narration_index, music_index, comp.music_lufs, comp.duration, tail, norm
+            ),
+        )
+    )
 
     ff.run(
         [
@@ -360,6 +377,7 @@ def _audio_chain(
     music_lufs: float,
     duration: float,
     tail: float,
+    normalise: str = "loudnorm=I=-14:TP=-1.5:LRA=11",
 ) -> str:
     """Narration at the front, music ducked underneath, output to broadcast loudness."""
     # The mix used to end with the narration, which cut the bed off
@@ -368,7 +386,7 @@ def _audio_chain(
     lead = f"apad=pad_dur={tail:.3f}," if tail else ""
 
     if music_index is None:
-        return f"[{narration_index}:a]{lead}loudnorm=I=-14:TP=-1.5:LRA=11[aout]"
+        return f"[{narration_index}:a]{lead}{EVEN},{normalise}[aout]"
 
     # Begin the fall just before the last syllable so the bed is already
     # receding when the line lands, rather than dropping out after it.
@@ -397,8 +415,48 @@ def _audio_chain(
         # gaps instead of sitting at a constant level under the whole track.
         f"[bed][key]sidechaincompress=threshold=0.03:ratio=12:attack=8:release=320[duck];"
         f"[vo][duck]amix=inputs=2:duration=first:dropout_transition=0:normalize=0"
-        f",loudnorm=I=-14:TP=-1.5:LRA=11[aout]"
+        f",{EVEN},{normalise}[aout]"
     )
+
+
+# Broadcast target. Single-pass loudnorm only approximates it: across ten test
+# videos every one landed between -15.5 and -16.8 LUFS, about two decibels
+# under, which on a platform that normalises to roughly -14 means every video
+# arrives quieter than the ones beside it.
+TARGET_LUFS = -14.0
+
+
+def _mastered(args: list[str], build: Callable[[str], str]) -> str:
+    """Measure the mix, then normalise it with an exact gain.
+
+    Two passes, because one does not land. The measuring pass runs the same
+    chain with loudnorm in analysis mode -- not stacked after a normalising
+    one, which measures the output of the first filter and learns nothing
+    about the mix.
+    """
+    import json
+    import re
+
+    probe = build("loudnorm=print_format=json")
+    try:
+        log = ff.run_capture([*args, "-filter_complex", probe, "-map", "[aout]", "-f", "null", "-"])
+    except ff.FFmpegError:
+        return build("loudnorm=I=-14:TP=-1.5:LRA=11")
+
+    blocks = re.findall(r"\{[^{}]*input_i[^{}]*\}", log, re.DOTALL)
+    try:
+        stats = json.loads(blocks[-1])
+        measured = (
+            f"loudnorm=I={TARGET_LUFS}:TP=-1.5:LRA=11"
+            f":measured_I={float(stats['input_i']):.2f}"
+            f":measured_TP={float(stats['input_tp']):.2f}"
+            f":measured_LRA={float(stats['input_lra']):.2f}"
+            f":measured_thresh={float(stats['input_thresh']):.2f}"
+            ":linear=true"
+        )
+    except (IndexError, KeyError, ValueError):
+        return build("loudnorm=I=-14:TP=-1.5:LRA=11")
+    return build(measured)
 
 
 def describe(comp: Composition) -> str:

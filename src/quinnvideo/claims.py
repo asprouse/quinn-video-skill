@@ -74,6 +74,84 @@ _UNITS = [
 # carries a second number that is caught anyway ("one in five").
 _MULTIPLIERS = ["twice", "double", "triple", "tenfold", "fold"]
 
+# A lone number word is only a quantity when something is being measured by it.
+# "ten times its weight" and "twenty percent" are claims; "the two cancel" and
+# "four measurements" are counting words in a sentence, and blocking on those
+# taught nothing except to add a filler ledger entry to silence the check.
+_MEASURED = [
+    "times",
+    "percent",
+    "per",
+    "cent",
+    "hundred",
+    "thousand",
+    "million",
+    "billion",
+    "second",
+    "seconds",
+    "minute",
+    "minutes",
+    "hour",
+    "hours",
+    "day",
+    "days",
+    "week",
+    "weeks",
+    "month",
+    "months",
+    "year",
+    "years",
+    "degree",
+    "degrees",
+    "metre",
+    "metres",
+    "meter",
+    "meters",
+    "mile",
+    "miles",
+    "foot",
+    "feet",
+    "inch",
+    "inches",
+    "pound",
+    "pounds",
+    "kilo",
+    "kilos",
+    "kilogram",
+    "kilograms",
+    "gram",
+    "grams",
+    "tonne",
+    "tonnes",
+    "ton",
+    "tons",
+    "litre",
+    "litres",
+    "liter",
+    "liters",
+    "mph",
+    "kph",
+    "horsepower",
+    "volt",
+    "volts",
+    "watt",
+    "watts",
+    "hertz",
+    "decibel",
+    "decibels",
+    "people",
+    "deaths",
+    "injuries",
+    "cases",
+    "percentage",
+    "figures",
+    "figure",
+    "grand",
+    "dollars",
+    "cents",
+    "points",
+]
+
 _NUMBER_WORD = re.compile(
     r"\b(?:" + "|".join(_UNITS + _MULTIPLIERS) + r")(?:\s+(?:" + "|".join(_UNITS) + r"))*\b",
     re.IGNORECASE,
@@ -250,6 +328,14 @@ def assertions(text: str) -> list[str]:
     for start, end, span in sorted(spans, key=lambda s: (s[0], -(s[1] - s[0]))):
         if not any(k_start <= start and end <= k_end for k_start, k_end, _ in kept):
             kept.append((start, end, span))
+    # Drop bare counting words: a single small number with nothing measured by
+    # it is sentence furniture, not an assertion.
+    kept = [
+        (start, end, span)
+        for start, end, span in kept
+        if not _is_counting(span, text, end) and not _is_distributive(span, text, end)
+    ]
+
     # Collapse repeats: a line that says "twenty nine" twice makes one claim.
     seen: set[str] = set()
     unique: list[str] = []
@@ -434,3 +520,42 @@ def worklist(board: Storyboard) -> str:
             "    with a URL attached.",
         ]
     )
+
+
+_TIME = [
+    "year",
+    "years",
+    "day",
+    "days",
+    "week",
+    "weeks",
+    "month",
+    "months",
+    "time",
+    "times",
+    "morning",
+    "night",
+]
+
+
+def _is_distributive(span: str, text: str, end: int) -> bool:
+    """True for "every year" and friends -- a cadence, not a universal claim.
+
+    "Every one of them manufactures urgency" is a claim about all members of a
+    set. "Every year, the same slice" is just saying annually.
+    """
+    if span.lower() != "every":
+        return False
+    following = re.match(r"\W*(\w+)", text[end:])
+    return bool(following and following.group(1).lower() in _TIME)
+
+
+def _is_counting(span: str, text: str, end: int) -> bool:
+    """True for a lone number word that measures nothing."""
+    if any(ch.isdigit() for ch in span):
+        return False
+    words = span.split()
+    if len(words) != 1 or words[0].lower() not in _UNITS:
+        return False  # compounds like "two hundred" are quantities
+    following = re.match(r"\W*(\w+)", text[end:])
+    return not (following and following.group(1).lower() in _MEASURED)

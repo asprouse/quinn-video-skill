@@ -280,3 +280,26 @@ def test_the_worklist_goes_quiet_once_sourced():
         ],
     )
     assert "Nothing to check" in worklist(board)
+
+
+@pytest.mark.parametrize(
+    ("line", "flags"),
+    [
+        # measured -- a quantity claim
+        ("roughly ten times its weight", True),
+        ("die at twenty percent", True),
+        ("a twenty pound box", True),
+        ("Not four hundred horsepower. Four figures.", True),
+        ("Every charge moves lithium.", True),
+        ("Every one of them manufactures urgency.", True),
+        # counting words and cadence -- sentence furniture
+        ("The two cancel. That is physics doing subtraction.", False),
+        ("Four measurements, in three different units.", False),
+        ("Every year, the same slice.", False),
+    ],
+)
+def test_only_numbers_that_measure_something_are_assertions(line, flags):
+    """The check blocked on "the two cancel" and "every year", which taught
+    nothing except to add a filler ledger entry to silence it. Firing on
+    everything costs the signal that firing on something is worth reading."""
+    assert bool(assertions(line)) is flags
