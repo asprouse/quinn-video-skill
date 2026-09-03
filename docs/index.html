@@ -198,9 +198,9 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 <section class="slide">
   <div class="inner split">
     <div>
-      <p class="eyebrow reveal">What it produces</p>
-      <h2 class="reveal">The input was two words</h2>
-      <p class="reveal">Someone typed <em>ladder safety</em> and approved a script. Everything
+      <p class="eyebrow reveal">Output</p>
+      <h2 class="reveal">A finished video, from a two-word topic</h2>
+      <p class="lead reveal">Someone typed <em>ladder safety</em> and approved a script. Everything
         else — the writing, the voice, the presenter, the footage, the cuts, the captions,
         the music — was assembled without anyone touching a timeline.</p>
       <div class="cols reveal" style="margin-top:2rem">
@@ -218,7 +218,8 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 </section><section class="slide">
   <div class="inner">
     <p class="eyebrow reveal">Composition</p>
-    <h2 class="reveal">Six layers, composited — never edited</h2>
+    <h2 class="reveal">What goes into every frame</h2>
+    <p class="lead reveal">Six layers, composited in one pass. Nothing is edited, because there is no timeline to edit.</p>
     <div class="feat reveal">
       <div><span class="k">presenter</span><h3>Someone on screen, talking</h3>
         <p>A lip-synced presenter sitting in the shot rather than in a box beside it.
@@ -245,7 +246,7 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 <section class="slide">
   <div class="inner">
     <p class="eyebrow reveal">Range</p>
-    <h2 class="reveal">It is not a safety-video tool</h2>
+    <h2 class="reveal">The same pipeline on three unrelated topics</h2>
     <p class="lead reveal">The same pipeline, unchanged, across three subjects that have
       nothing in common. Nothing about it is specialised to a domain.</p>
     <div class="scroller reveal" style="margin-top:1.4rem">
@@ -273,10 +274,10 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 
 <section class="slide">
   <div class="inner">
-    <p class="eyebrow reveal">The keystone</p>
-    <h2 class="reveal">Everything runs on one clock</h2>
-    <p class="lead reveal">The speech API returns <em>word-level timestamps</em>. Captions,
-      b-roll cuts and the presenter's mouth all derive from that single source.</p>
+    <p class="eyebrow reveal">Timing</p>
+    <h2 class="reveal">Word timestamps drive captions, cuts and lip-sync</h2>
+    <p class="lead reveal">Everything runs on one clock. The speech API returns the start and
+      end of every spoken word, and all three timed layers are cut from that one source.</p>
     <p class="reveal">Nothing is aligned after the fact, so nothing can drift apart. The
       alternative — transcribing the audio back and matching it up — is where lip-sync
       and caption timing normally go wrong.</p>
@@ -292,7 +293,7 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
   <div class="inner split">
     <div>
       <p class="eyebrow reveal">The contract</p>
-      <h2 class="reveal">One document every stage reads</h2>
+      <h2 class="reveal">The storyboard every stage reads and writes</h2>
       <p class="reveal">The model writes a storyboard. Every deterministic stage below it
         consumes that one file — which is what keeps the pipeline legible, and what makes
         a half-finished run resumable instead of disposable.</p>
@@ -317,7 +318,8 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 </section><section class="slide" data-builds="8">
   <div class="inner">
     <p class="eyebrow reveal">The pipeline</p>
-    <h2 class="reveal">Everything free happens first</h2>
+    <h2 class="reveal">The pipeline, stage by stage</h2>
+    <p class="lead reveal">Everything free happens before anything is spent.</p>
     <svg class="flow reveal" viewBox="0 0 1080 470" role="img"
          aria-label="Pipeline: topic, angles and storyboard are free; an approval gate precedes narration, a concurrently rendered presenter and b-roll, compositing, and a grade-and-repair loop producing the final video.">
       <defs>
@@ -407,7 +409,7 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 <section class="slide">
   <div class="inner">
     <p class="eyebrow reveal">Interaction</p>
-    <h2 class="reveal">It asks exactly twice</h2>
+    <h2 class="reveal">Where it asks for your input</h2>
     <p class="lead reveal">Once for the angle. Once for the script. Between those and the
       finished video it works silently.</p>
     <div class="cols reveal" style="margin-top:2rem">
@@ -426,7 +428,7 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
   <div class="inner split narrow">
     <div>
       <p class="eyebrow slate reveal">Quality · footage</p>
-      <h2 class="reveal">Shots are judged against the narration</h2>
+      <h2 class="reveal">Footage is scored against the narration</h2>
       <p class="reveal">Not against the shot description — because <em>we wrote that too</em>.
         A beat whose line was “you don't have to be high up to die falling off a ladder”
         carried the intent “a worker on a low stepladder”, and the finished video contained
@@ -444,8 +446,9 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 </section><section class="slide">
   <div class="inner split">
     <div>
-      <p class="eyebrow slate reveal">Quality · truth</p>
-      <h2 class="reveal">The script says what it cannot prove</h2>
+      <p class="eyebrow slate reveal">Quality · claims</p>
+      <h2 class="reveal">Every factual claim is recorded with its source</h2>
+    <p class="lead reveal">It verifies nothing, and cannot. What it does is put every assertion in front of a person while changing it is still free.</p>
       <p class="reveal">Every mechanical check is about <em>mechanics</em> — duration, sync,
         black frames. Nothing looked at whether the script was true, and a wrong number in a
         safety video is worse than a dull one.</p>
@@ -469,7 +472,7 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 </section><section class="slide">
   <div class="inner">
     <p class="eyebrow slate reveal">Quality · staleness</p>
-    <h2 class="reveal">Cached on their inputs, not their existence</h2>
+    <h2 class="reveal">Artifacts rebuild when their inputs change</h2>
     <p class="lead reveal">Every expensive stage skipped its work if the output file was
       already there. Right for a retry. Wrong for iterating in place — which is how the
       tool is actually used.</p>
@@ -495,8 +498,8 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 </section><section class="slide">
   <div class="inner split narrow">
     <div>
-      <p class="eyebrow slate reveal">Quality · the render</p>
-      <h2 class="reveal">What a machine can check, and what it can't</h2>
+      <p class="eyebrow slate reveal">Quality · grading</p>
+      <h2 class="reveal">What the automated pass checks, and what it cannot</h2>
       <p class="reveal">Grading samples frames and measures what is measurable: duration,
         resolution, dead air, repeated footage, black frames, captions colliding with the
         presenter, layers out of sync.</p>
@@ -512,8 +515,9 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
   </div>
 </section><section class="slide">
   <div class="inner">
-    <p class="eyebrow reveal">Built for the loop</p>
-    <h2 class="reveal">Short-form autoplays, so the ending is a seam</h2>
+    <p class="eyebrow reveal">The ending</p>
+    <h2 class="reveal">The ending is built for autoplay</h2>
+    <p class="lead reveal">Short-form replays the instant it finishes, so the last frame and the first sit next to each other. That seam is either deliberate or it reads as a glitch.</p>
     <div class="scroller reveal">
       <table>
         <thead><tr><th>Ending</th><th class="num">Hold after last word</th><th class="num">Audio in final 0.4s</th></tr></thead>
@@ -532,7 +536,7 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 </section><section class="slide act">
   <div class="inner">
     <p class="num reveal">Part 3</p>
-    <h2 class="reveal">What is next</h2>
+    <h2 class="reveal">What comes next</h2>
     <div class="rule reveal"></div>
     <ol class="reveal"><li>your material</li><li>where this goes</li><li>try it</li></ol>
   </div>
@@ -541,8 +545,8 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 <section class="slide">
   <div class="inner split">
     <div>
-      <p class="eyebrow reveal">The next unlock</p>
-      <h2 class="reveal">Not a topic. Your material.</h2>
+      <p class="eyebrow reveal">Source material</p>
+      <h2 class="reveal">Generating from your own source material</h2>
       <p class="lead reveal">Today you type two words and it writes from what the model
         already knows. The interesting version reads <em>your</em> content and makes the
         video from that.</p>
@@ -563,8 +567,8 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 
 <section class="slide">
   <div class="inner">
-    <p class="eyebrow reveal">Beyond one video at a time</p>
-    <h2 class="reveal">Where this goes</h2>
+    <p class="eyebrow reveal">Direction</p>
+    <h2 class="reveal">Where this could go next</h2>
     <div class="feat reveal">
       <div><span class="k">generation</span><h3>Shots, not stills that move</h3>
         <p>The next generation of video models — Seedance and its peers — make real shots
@@ -591,8 +595,8 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 
 <section class="slide">
   <div class="inner">
-    <p class="eyebrow reveal">Try it</p>
-    <h2 class="reveal">Installed as a plugin, run as a command</h2>
+    <p class="eyebrow reveal">Install</p>
+    <h2 class="reveal">Installing and running it</h2>
     <pre class="reveal" style="max-width:680px">/plugin marketplace add asprouse/quinn-video-skill
 <span class="c">then:</span> /quinn:video ladder safety</pre>
     <p class="reveal" style="margin-top:1.6rem">Needs a HeyGen key and ffmpeg. Everything
