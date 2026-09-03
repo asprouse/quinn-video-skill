@@ -101,17 +101,22 @@ def _avatar_fingerprint(speech: Speech, avatar_id: str) -> str:
     return cache.fingerprint(spoken, round(speech.duration, 2), avatar_id, MOTION_PROMPT)
 
 
-def _avatar_key(run: Run, speech: Speech) -> str:
-    """Idempotency key that changes when the audio does.
+def _avatar_key(run: Run, speech: Speech, avatar_id: str) -> str:
+    """Idempotency key covering everything the render is made of.
 
     Keyed on the run alone, a re-narration returned the *previous* render from
     HeyGen's cache: a presenter lip-synced to words that no longer existed,
     stopping fourteen seconds before the audio did. Nothing failed, and the
     video shipped.
+
+    Then the audio was added and the presenter was not, so switching avatars
+    on an unchanged script hit the same cache and returned the old face. The
+    key has to name every input, not just the one that bit last time.
     """
     import hashlib
 
-    stamp = hashlib.sha256(speech.audio_url.encode("utf-8")).hexdigest()[:10]
+    blob = f"{speech.audio_url}|{avatar_id}|{MOTION_PROMPT}".encode()
+    stamp = hashlib.sha256(blob).hexdigest()[:10]
     return f"{run.directory.name}-avatar-{stamp}"
 
 
@@ -131,7 +136,7 @@ def submit_avatar(
     is most of the wall-clock difference in a full build.
     """
     avatar_id = avatar_id or require("QUINN_AVATAR_ID", "the presenter")
-    key = _avatar_key(run, speech)
+    key = _avatar_key(run, speech, avatar_id)
     fp = _avatar_fingerprint(speech, avatar_id)
 
     existing = run.state().get("avatar_video_id")
@@ -229,7 +234,7 @@ def render_avatar(
             motion_prompt=MOTION_PROMPT,
             # Keyed on the audio so a retry after a network blip reuses the
             # render, while a re-narration does not.
-            idempotency_key=_avatar_key(run, speech),
+            idempotency_key=_avatar_key(run, speech, avatar_id),
         )
         run.update_state(avatar_video_id=video_id)
         log(f"avatar: {video_id}, waiting")

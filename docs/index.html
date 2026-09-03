@@ -137,6 +137,19 @@ td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 @media (max-width:980px){.feat{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:620px){.feat{grid-template-columns:1fr}}
 
+/* three-up comparison */
+.trio{display:flex;gap:1.5rem;margin-top:1.3rem;align-items:flex-start}
+.trio figure{flex:1 1 0;min-width:0}
+/* Height-led, not width-led: three 9:16 frames sized by the width of a
+   third of the page are taller than a laptop viewport, and the captions
+   fall off the bottom of the slide. */
+.trio img{height:min(38vh,420px);width:auto;max-width:100%;display:block;
+  border-radius:10px;border:1px solid var(--rule);background:#000}
+.trio figcaption{font-family:var(--body);font-size:.84rem;color:var(--muted);
+  letter-spacing:0;text-transform:none;margin-top:.7rem;line-height:1.45}
+.trio figcaption b{color:var(--text);font-weight:600;display:block}
+@media (max-width:820px){.trio{flex-direction:column}.trio img{height:auto;width:100%}}
+
 /* flow diagram */
 .flow{width:100%;height:auto;max-height:58vh;margin-top:1.2rem;overflow:visible}
 .flow [data-step]{opacity:0;transition:opacity .38s ease}
@@ -247,20 +260,21 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
   <div class="inner">
     <p class="eyebrow reveal">Range</p>
     <h2 class="reveal">The same pipeline on three unrelated topics</h2>
-    <p class="lead reveal">The same pipeline, unchanged, across three subjects that have
-      nothing in common. Nothing about it is specialised to a domain.</p>
-    <div class="scroller reveal" style="margin-top:1.4rem">
-      <table>
-        <thead><tr><th>Topic</th><th class="num">Runtime</th><th class="num">Pace</th><th>What was different</th></tr></thead>
-        <tbody>
-          <tr><td>Ladder safety</td><td class="num">32.4s</td><td class="num">178 wpm</td>
-              <td class="muted">A rule about an angle, so the diagram was drawn rather than filmed</td></tr>
-          <tr><td>Lifting safety</td><td class="num">40.3s</td><td class="num">164 wpm</td>
-              <td class="muted">A disputed claim surfaced for a human before anything was spent</td></tr>
-          <tr><td>Supra vs GT-R</td><td class="num">37.5s</td><td class="num">170 wpm</td>
-              <td class="muted">No authority publishes on it, so its claims stayed marked unverified</td></tr>
-        </tbody>
-      </table>
+    <p class="lead reveal">A construction site, a warehouse floor and a racetrack. Nothing
+      about the pipeline is specialised to a subject — only the storyboard changes.</p>
+    <div class="trio reveal">
+      <figure>
+        <img src="media/range-ladder.jpg" alt="A frame from the ladder safety video: a worker low on a ladder, captioned">
+        <figcaption><b>Ladder safety</b> 32.4s · a rule about an angle, so the diagram was drawn rather than filmed</figcaption>
+      </figure>
+      <figure>
+        <img src="media/range-lifting.jpg" alt="A frame from the lifting safety video: a worker bending to lift a box, captioned">
+        <figcaption><b>Lifting safety</b> 40.3s · a disputed claim surfaced for a human before anything was spent</figcaption>
+      </figure>
+      <figure>
+        <img src="media/range-supra.jpg" alt="A frame from the Supra versus GT-R video: a GT-R cornering on a racetrack, captioned">
+        <figcaption><b>Supra vs GT-R</b> 37.5s · no authority publishes on it, so its claims stayed unverified</figcaption>
+      </figure>
     </div>
   </div>
 </section><section class="slide act">
