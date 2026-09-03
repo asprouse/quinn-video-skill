@@ -116,6 +116,28 @@ td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .row.hit{border-left-color:var(--gold)}
 .row .w{font-family:var(--mono);font-size:.75rem;color:var(--dim);white-space:nowrap}
 
+/* flow diagram */
+.flow{width:100%;height:auto;max-height:58vh;margin-top:1.2rem;overflow:visible}
+.flow [data-step]{opacity:0;transition:opacity .38s ease}
+.flow [data-step].shown{opacity:1}
+@media (prefers-reduced-motion:reduce){.flow [data-step]{transition:none}}
+.flow .node rect{fill:var(--panel);stroke:var(--rule);stroke-width:1}
+.flow .node.gate rect{fill:#FFC93C14;stroke:#FFC93C77}
+.flow .node.paid rect{stroke:#FFC93C3a}
+.flow .node.out rect{fill:#FFC93C1f;stroke:#FFC93C99}
+.flow .pill{fill:none;stroke:var(--rule);stroke-dasharray:3 3}
+.flow text{font-family:var(--body);fill:var(--text)}
+.flow .t{font-size:15px;font-weight:500}
+.flow .n{font-family:var(--mono);font-size:10.5px;fill:var(--dim);letter-spacing:.1em}
+.flow .lbl{font-family:var(--mono);font-size:12px;fill:var(--muted)}
+.flow .note{font-family:var(--mono);font-size:11px;fill:var(--dim);letter-spacing:.06em}
+.flow .note.gold{fill:var(--gold)}
+.flow .edge{fill:none;stroke:#5F646E;stroke-width:1.4}
+.flow .edge.gold{stroke:var(--gold)}
+.flow .edge.dash{stroke-dasharray:4 4}
+.flow .brace{fill:none;stroke:var(--rule);stroke-width:1.2}
+.flow .clock{fill:none;stroke:var(--gold);stroke-width:1.2;stroke-dasharray:3 5;opacity:.75}
+
 /* chrome */
 .hud{position:fixed;left:0;right:0;bottom:0;height:4px;background:#ffffff10;z-index:20}
 .hud b{display:block;height:100%;width:0;background:var(--gold);transition:width .25s ease}
@@ -208,22 +230,93 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
   </div>
 </section>
 
-<section class="slide">
+<section class="slide" data-builds="8">
   <div class="inner">
     <p class="eyebrow reveal">The pipeline</p>
     <h2 class="reveal">Everything free happens first</h2>
-    <div class="pipe reveal" style="margin-top:1.4rem">
-      <div class="step"><span class="n">01</span><span>Offer angles — the user picks the argument</span><span class="tag free">free</span></div>
-      <div class="step"><span class="n">02</span><span>Write the storyboard, grade three hooks</span><span class="tag free">free</span></div>
-      <div class="step stop"><span class="n">03</span><span><strong>Approval gate</strong> — script, cost, unverified claims</span><span class="tag free">stop</span></div>
-      <div class="step"><span class="n">04</span><span>Narrate → word timestamps</span><span class="tag paid">$0.02</span></div>
-      <div class="step"><span class="n">05</span><span>Queue the presenter, work on b-roll while it renders</span><span class="tag paid">$1.66</span></div>
-      <div class="step"><span class="n">06</span><span>Source, judge and generate footage</span><span class="tag paid">$0.42</span></div>
-      <div class="step"><span class="n">07</span><span>Composite: b-roll, alpha presenter, captions, ducked bed</span><span class="tag free">free</span></div>
-      <div class="step"><span class="n">08</span><span>Grade, repair, rebuild</span><span class="tag free">free</span></div>
-    </div>
-    <p class="reveal muted" style="margin-top:1.4rem;font-size:.95rem">Visual repairs are free and
-      script repairs are not, so the gate sits where changing your mind still costs nothing.</p>
+    <svg class="flow reveal" viewBox="0 0 1080 470" role="img"
+         aria-label="Pipeline: topic, angles and storyboard are free; an approval gate precedes narration, a concurrently rendered presenter and b-roll, compositing, and a grade-and-repair loop producing the final video.">
+      <defs>
+        <marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="#5F646E"/>
+        </marker>
+        <marker id="tipgold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="#FFC93C"/>
+        </marker>
+      </defs>
+
+      <g data-step="1">
+        <rect class="pill" x="20" y="76" width="100" height="46" rx="23"/>
+        <text class="lbl" x="70" y="104" text-anchor="middle">topic</text>
+        <path class="edge" d="M120 99 H154" marker-end="url(#tip)"/>
+        <g class="node"><rect x="160" y="70" width="170" height="58" rx="8"/>
+          <text class="n" x="176" y="93">01</text>
+          <text class="t" x="176" y="112">offer angles</text></g>
+      </g>
+
+      <g data-step="2">
+        <path class="edge" d="M330 99 H364" marker-end="url(#tip)"/>
+        <g class="node"><rect x="370" y="70" width="180" height="58" rx="8"/>
+          <text class="n" x="386" y="93">02</text>
+          <text class="t" x="386" y="112">storyboard + hooks</text></g>
+      </g>
+
+      <g data-step="3">
+        <path class="edge" d="M550 99 H584" marker-end="url(#tipgold)"/>
+        <g class="node gate"><rect x="590" y="70" width="190" height="58" rx="8"/>
+          <text class="n" x="606" y="93">03</text>
+          <text class="t" x="606" y="112">approval gate</text></g>
+        <text class="note" x="800" y="95">everything above</text>
+        <text class="note gold" x="800" y="113">is free</text>
+        <path class="edge gold" d="M685 128 V146 Q685 160 671 160 H119 Q105 160 105 174 V244" marker-end="url(#tipgold)"/>
+      </g>
+
+      <g data-step="4">
+        <g class="node paid"><rect x="20" y="250" width="170" height="58" rx="8"/>
+          <text class="n" x="36" y="273">04</text>
+          <text class="t" x="36" y="292">narrate</text></g>
+        <text class="note" x="36" y="330">word timestamps</text>
+      </g>
+
+      <g data-step="5">
+        <path class="edge" d="M190 268 H214 Q228 268 228 254 V234 H234" marker-end="url(#tip)"/>
+        <path class="edge" d="M190 290 H214 Q228 290 228 304 V324 H234" marker-end="url(#tip)"/>
+        <g class="node paid"><rect x="240" y="205" width="175" height="58" rx="8"/>
+          <text class="n" x="256" y="228">05</text>
+          <text class="t" x="256" y="247">presenter render</text></g>
+        <g class="node paid"><rect x="240" y="295" width="175" height="58" rx="8"/>
+          <text class="n" x="256" y="318">06</text>
+          <text class="t" x="256" y="337">b-roll</text></g>
+        <path class="brace" d="M424 212 Q434 212 434 222 V272 Q434 282 444 282 Q434 282 434 292 V342 Q434 352 424 352"/>
+        <text class="note" x="240" y="194">at the same time</text>
+      </g>
+
+      <g data-step="6">
+        <path class="edge" d="M415 234 H450 Q464 234 464 248 V262 H469" marker-end="url(#tip)"/>
+        <path class="edge" d="M415 324 H450 Q464 324 464 310 V296 H469" marker-end="url(#tip)"/>
+        <g class="node"><rect x="475" y="250" width="175" height="58" rx="8"/>
+          <text class="n" x="491" y="273">07</text>
+          <text class="t" x="491" y="292">composite</text></g>
+        <path class="clock" d="M105 338 Q105 400 300 400 Q540 400 555 316"/>
+        <path class="clock" d="M118 330 Q140 200 246 200"/>
+        <text class="note gold" x="300" y="424">one clock: captions, cuts, lip-sync</text>
+      </g>
+
+      <g data-step="7">
+        <path class="edge" d="M650 279 H694" marker-end="url(#tip)"/>
+        <g class="node"><rect x="700" y="250" width="150" height="58" rx="8"/>
+          <text class="n" x="716" y="273">08</text>
+          <text class="t" x="716" y="292">grade</text></g>
+        <path class="edge dash" d="M775 308 V336 Q775 350 761 350 H576 Q562 350 562 336 V314" marker-end="url(#tip)"/>
+        <text class="note" x="669" y="370" text-anchor="middle">repair — free</text>
+      </g>
+
+      <g data-step="8">
+        <path class="edge gold" d="M850 279 H894" marker-end="url(#tipgold)"/>
+        <g class="node out"><rect x="900" y="250" width="150" height="58" rx="8"/>
+          <text class="t" x="916" y="285">final.mp4</text></g>
+      </g>
+    </svg>
   </div>
 </section>
 
@@ -390,7 +483,7 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
 
 <div class="hud"><b id="bar"></b></div>
 <div class="count"><b id="cur">1</b> / <span id="tot">12</span></div>
-<div class="hint" id="hint"><kbd>↑</kbd> <kbd>↓</kbd> to move</div>
+<div class="hint" id="hint"><kbd>space</kbd> to advance · <kbd>↑</kbd><kbd>↓</kbd> to move</div>
 
 <script>
 const deck = document.getElementById('deck');
@@ -399,32 +492,74 @@ const bar = document.getElementById('bar');
 const cur = document.getElementById('cur');
 document.getElementById('tot').textContent = slides.length;
 
+// Slides can assemble in stages before handing on to the next slide, so a
+// diagram builds under the same key that advances everything else.
+const builds = slides.map(s => [...s.querySelectorAll('[data-step]')]
+  .sort((a, b) => a.dataset.step - b.dataset.step));
+const at = slides.map(() => 0);
+
+function paint(i) {
+  builds[i].forEach((g, n) => g.classList.toggle('shown', n < at[i]));
+}
+function fill(i, all) { at[i] = all ? builds[i].length : 0; paint(i); }
+
 let index = 0;
+function mark(i) {
+  index = i;
+  cur.textContent = i + 1;
+  bar.style.width = ((i + 1) / slides.length * 100) + '%';
+}
 const io = new IntersectionObserver(entries => {
   for (const e of entries) {
     if (!e.isIntersecting) continue;
     e.target.classList.add('on');
-    index = slides.indexOf(e.target);
-    cur.textContent = index + 1;
-    bar.style.width = ((index + 1) / slides.length * 100) + '%';
+    const next = slides.indexOf(e.target);
+    // Arriving from below means the slide was already presented; show it whole
+    // rather than making someone re-advance a diagram to scroll back past it.
+    if (next !== index && builds[next].length) fill(next, next < index);
+    mark(next);
   }
 }, {threshold: 0.55});
 slides.forEach(s => io.observe(s));
 
+const smooth = () => matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth';
 function go(n) {
-  index = Math.max(0, Math.min(slides.length - 1, n));
-  slides[index].scrollIntoView({behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth'});
+  const target = Math.max(0, Math.min(slides.length - 1, n));
+  if (target !== index && builds[target].length) fill(target, target < index);
+  // Set the counter here rather than waiting on the observer, so the chrome
+  // is right even if the scroll is interrupted mid-flight.
+  mark(target);
+  slides[target].scrollIntoView({behavior: smooth()});
 }
+function forward() {
+  if (at[index] < builds[index].length) { at[index]++; paint(index); return; }
+  go(index + 1);
+}
+function back() {
+  if (at[index] > 0) { at[index]--; paint(index); return; }
+  go(index - 1);
+}
+
 addEventListener('keydown', e => {
-  if (e.target.matches('video, input, textarea')) return;
-  const fwd = ['ArrowDown','ArrowRight','PageDown',' '];
-  const back = ['ArrowUp','ArrowLeft','PageUp'];
-  if (fwd.includes(e.key)) { e.preventDefault(); go(index + 1); }
-  else if (back.includes(e.key)) { e.preventDefault(); go(index - 1); }
-  else if (e.key === 'Home') { e.preventDefault(); go(0); }
-  else if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  // e.target is document or window when nothing is focused, and neither has
+  // .matches -- reading it blind threw and killed the handler outright.
+  const t = e.target;
+  if (t && t.matches && t.matches('video, input, textarea, a, button')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (k === ' ' || k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown') { e.preventDefault(); forward(); }
+  else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace') { e.preventDefault(); back(); }
+  else if (k === 'Home') { e.preventDefault(); go(0); }
+  else if (k === 'End') { e.preventDefault(); go(slides.length - 1); }
+});
+
+// Clicking anywhere on a building slide also advances it, for a presenter
+// holding a clicker rather than a keyboard.
+deck.addEventListener('click', e => {
+  if (e.target.closest('a, video, button')) return;
+  if (builds[index].length && at[index] < builds[index].length) forward();
 });
 
 const hint = document.getElementById('hint');
-setTimeout(() => { hint.style.opacity = '0'; }, 4200);
+setTimeout(() => { hint.style.opacity = '0'; }, 4600);
 </script>
