@@ -4,6 +4,8 @@ A Claude Code skill that turns a topic into a finished 30–60 second vertical
 educational video — the kind of short-form explainer that actually holds a
 viewer to the end.
 
+**[How it works →](https://asprouse.github.io/quinn-video-skill/)**
+
 Give it `ladder safety` and it returns an mp4 with a HeyGen avatar presenting,
 a voiceover, word-by-word captions locked to the narration, a fast-cut
 slideshow of on-topic footage, and a scorecard telling you what is still wrong

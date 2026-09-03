@@ -1,0 +1,430 @@
+<title>Quinn Video</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How a topic becomes a finished 30–60 second vertical video: architecture, pipeline, and the quality machinery.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ink:#0E0F12; --panel:#16181D; --raise:#1D2027;
+  --text:#E9EAEE; --muted:#8C919C; --dim:#5F646E;
+  --gold:#FFC93C; --slate:#7FA0B8; --rule:#272B33;
+  --ok:#6FBF8B; --bad:#E4715F;
+  --display:'Archivo',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;background:var(--ink);color:var(--text);
+  font-family:var(--body);font-size:17px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---- deck mechanics ---- */
+.deck{height:100dvh;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none}
+.deck::-webkit-scrollbar{display:none}
+.slide{
+  min-height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(2rem,6vw,7rem);padding-bottom:6rem;
+  border-bottom:1px solid var(--rule);position:relative;
+}
+.inner{width:100%;max-width:1180px;margin:0 auto}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.on .reveal{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+/* ---- type ---- */
+.eyebrow{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--gold);margin:0 0 1.1rem;
+}
+.eyebrow.slate{color:var(--slate)}
+h1{
+  font-family:var(--display);font-weight:800;letter-spacing:-.03em;line-height:.95;
+  font-size:clamp(3rem,8.5vw,7rem);margin:0 0 1.5rem;text-wrap:balance;
+}
+h2{
+  font-family:var(--display);font-weight:800;letter-spacing:-.025em;line-height:1.02;
+  font-size:clamp(2rem,5vw,3.6rem);margin:0 0 1.4rem;text-wrap:balance;
+}
+h3{font-family:var(--display);font-weight:600;font-size:1.15rem;letter-spacing:-.01em;margin:0 0 .5rem}
+p{margin:0 0 1.05rem;max-width:62ch;color:#CFD3DA}
+.lead{font-size:clamp(1.1rem,1.9vw,1.4rem);color:var(--text);max-width:56ch}
+strong{color:var(--text);font-weight:600}
+em{color:var(--gold);font-style:normal;font-weight:500}
+a{color:var(--gold)}
+.muted{color:var(--muted)}
+code{font-family:var(--mono);font-size:.88em;color:var(--gold);background:#ffffff0d;padding:.1em .35em;border-radius:3px}
+
+/* ---- layout helpers ---- */
+.split{display:grid;grid-template-columns:1fr minmax(280px,380px);gap:clamp(2rem,5vw,4.5rem);align-items:center}
+.split.narrow{grid-template-columns:1fr minmax(240px,300px)}
+@media (max-width:880px){.split,.split.narrow{grid-template-columns:1fr}}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1.6rem}
+.stack{display:flex;flex-direction:column;gap:1.1rem}
+
+/* ---- components ---- */
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:1.3rem 1.4rem}
+.card h3{color:var(--text)}
+.card p{font-size:.94rem;margin:0;color:var(--muted)}
+
+.phone{
+  width:100%;border-radius:14px;border:1px solid var(--rule);
+  background:#000;display:block;aspect-ratio:9/16;object-fit:cover;
+  box-shadow:0 24px 70px #0009;
+}
+figure{margin:0}
+figcaption{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:.7rem}
+
+pre{
+  font-family:var(--mono);font-size:.8rem;line-height:1.7;margin:0;
+  background:var(--panel);border:1px solid var(--rule);border-left:2px solid var(--gold);
+  border-radius:8px;padding:1.1rem 1.3rem;overflow-x:auto;color:#C6CBD4;
+}
+pre .k{color:var(--slate)}
+pre .s{color:var(--gold)}
+pre .c{color:var(--dim)}
+
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:.6rem .9rem;border-bottom:1px solid var(--rule)}
+th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:400}
+td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.scroller{overflow-x:auto}
+
+/* pipeline */
+.pipe{display:flex;flex-direction:column;gap:.5rem;font-family:var(--mono);font-size:.85rem}
+.step{display:grid;grid-template-columns:2.2rem 1fr auto;gap:1rem;align-items:center;
+  background:var(--panel);border:1px solid var(--rule);border-radius:7px;padding:.7rem 1rem}
+.step .n{color:var(--dim);font-size:.75rem}
+.step .tag{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .5rem;border-radius:99px}
+.free{color:var(--ok);border:1px solid #6FBF8B44;background:#6FBF8B11}
+.paid{color:var(--gold);border:1px solid #FFC93C44;background:#FFC93C11}
+.stop{border-color:#FFC93C55;background:#FFC93C0d}
+
+.big{font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,5vw,3.6rem);
+  letter-spacing:-.03em;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
+.metric .label{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:.45rem}
+
+.rows{display:flex;flex-direction:column;gap:.55rem}
+.row{display:grid;grid-template-columns:auto 1fr;gap:.9rem;align-items:baseline;
+  border-left:2px solid var(--rule);padding:.15rem 0 .15rem 1rem}
+.row.hit{border-left-color:var(--gold)}
+.row .w{font-family:var(--mono);font-size:.75rem;color:var(--dim);white-space:nowrap}
+
+/* chrome */
+.hud{position:fixed;left:0;right:0;bottom:0;height:4px;background:#ffffff10;z-index:20}
+.hud b{display:block;height:100%;width:0;background:var(--gold);transition:width .25s ease}
+.count{position:fixed;right:clamp(1rem,3vw,2.2rem);bottom:1.6rem;z-index:21;
+  font-family:var(--mono);font-size:.75rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.count b{color:var(--text);font-weight:500}
+.hint{position:fixed;left:clamp(1rem,3vw,2.2rem);bottom:1.5rem;z-index:21;
+  font-family:var(--mono);font-size:.7rem;color:var(--dim);transition:opacity .6s}
+kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:var(--muted)}
+</style>
+
+<div class="deck" id="deck">
+
+<section class="slide">
+  <div class="inner">
+    <p class="eyebrow reveal">Claude Code skill · HeyGen · fal.ai · ffmpeg</p>
+    <h1 class="reveal">A topic in.<br>A finished video out.</h1>
+    <p class="lead reveal">Thirty to sixty seconds, vertical, with a lip-synced presenter,
+      word-by-word captions and b-roll that actually matches what is being said.
+      One command, one approval, no editing.</p>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner split">
+    <div>
+      <p class="eyebrow reveal">What it produces</p>
+      <h2 class="reveal">Ladder safety, start to finish</h2>
+      <p class="reveal">Written, narrated, presented, shot, cut, captioned and scored
+        without a human touching a timeline. The only human input was approving the
+        script.</p>
+      <div class="cols reveal" style="margin-top:2rem">
+        <div class="metric"><div class="big">32s</div><div class="label">runtime</div></div>
+        <div class="metric"><div class="big">$2.30</div><div class="label">to produce</div></div>
+        <div class="metric"><div class="big">178</div><div class="label">words / minute</div></div>
+      </div>
+    </div>
+    <figure class="reveal">
+      <video class="phone" controls playsinline preload="metadata"
+             poster="media/frame-hook.jpg" src="media/ladder-safety.mp4"></video>
+      <figcaption>Generated end to end</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner">
+    <p class="eyebrow reveal">The keystone</p>
+    <h2 class="reveal">Everything runs on one clock</h2>
+    <p class="lead reveal">The speech API returns <em>word-level timestamps</em>. Captions,
+      b-roll cuts and the presenter's mouth all derive from that single source.</p>
+    <p class="reveal">Nothing is aligned after the fact, so nothing can drift apart. The
+      alternative — transcribing the audio back and matching it up — is where lip-sync
+      and caption timing normally go wrong.</p>
+    <div class="rows reveal" style="margin-top:1.6rem;max-width:640px">
+      <div class="row hit"><span class="w">0.00 – 0.41s</span><span>How</span></div>
+      <div class="row"><span class="w">0.41 – 0.58s</span><span>high</span></div>
+      <div class="row"><span class="w">0.58 – 0.72s</span><span>do</span></div>
+      <div class="row hit"><span class="w">0.72 – 0.95s</span><span>you</span></div>
+      <div class="row"><span class="w">…</span><span class="muted">one clock for captions, cuts and lip-sync</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner split">
+    <div>
+      <p class="eyebrow reveal">The contract</p>
+      <h2 class="reveal">One document every stage reads</h2>
+      <p class="reveal">The model writes a storyboard. Every deterministic stage below it
+        consumes that one file — which is what keeps the pipeline legible, and what makes
+        a half-finished run resumable instead of disposable.</p>
+      <p class="reveal muted">The storyboard plus the run directory <em>is</em> the entire state.</p>
+    </div>
+    <pre class="reveal"><span class="c">// storyboard.json</span>
+{
+  <span class="k">"topic"</span>: <span class="s">"ladder safety"</span>,
+  <span class="k">"beats"</span>: [{
+    <span class="k">"narration"</span>: <span class="s">"So set it properly.
+       One foot out for every four up."</span>,
+    <span class="k">"visual"</span>: {
+      <span class="k">"intent"</span>: <span class="s">"the 4:1 angle rule"</span>,
+      <span class="k">"prompt"</span>: <span class="s">"…"</span>
+    },
+    <span class="k">"emphasis"</span>: [<span class="s">"One"</span>, <span class="s">"four"</span>],
+    <span class="k">"overlay"</span>: { <span class="k">"kind"</span>: <span class="s">"ladder-angle"</span> }
+  }],
+  <span class="k">"claims"</span>: [ <span class="c">/* see later */</span> ]
+}</pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner">
+    <p class="eyebrow reveal">The pipeline</p>
+    <h2 class="reveal">Everything free happens first</h2>
+    <div class="pipe reveal" style="margin-top:1.4rem">
+      <div class="step"><span class="n">01</span><span>Offer angles — the user picks the argument</span><span class="tag free">free</span></div>
+      <div class="step"><span class="n">02</span><span>Write the storyboard, grade three hooks</span><span class="tag free">free</span></div>
+      <div class="step stop"><span class="n">03</span><span><strong>Approval gate</strong> — script, cost, unverified claims</span><span class="tag free">stop</span></div>
+      <div class="step"><span class="n">04</span><span>Narrate → word timestamps</span><span class="tag paid">$0.02</span></div>
+      <div class="step"><span class="n">05</span><span>Queue the presenter, work on b-roll while it renders</span><span class="tag paid">$1.66</span></div>
+      <div class="step"><span class="n">06</span><span>Source, judge and generate footage</span><span class="tag paid">$0.42</span></div>
+      <div class="step"><span class="n">07</span><span>Composite: b-roll, alpha presenter, captions, ducked bed</span><span class="tag free">free</span></div>
+      <div class="step"><span class="n">08</span><span>Grade, repair, rebuild</span><span class="tag free">free</span></div>
+    </div>
+    <p class="reveal muted" style="margin-top:1.4rem;font-size:.95rem">Visual repairs are free and
+      script repairs are not, so the gate sits where changing your mind still costs nothing.</p>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner">
+    <p class="eyebrow reveal">Interaction</p>
+    <h2 class="reveal">It asks exactly twice</h2>
+    <p class="lead reveal">Once for the angle. Once for the script. Between those and the
+      finished video it works silently.</p>
+    <div class="cols reveal" style="margin-top:2rem">
+      <div class="card"><h3>Never explain a settled decision</h3>
+        <p>If a choice is worth your input, it asks before deciding. If it isn't, it just
+          decides. Reporting a decision already made gives you nothing to act on.</p></div>
+      <div class="card"><h3>Three things always get said</h3>
+        <p>Money before it is spent. Failures, including its own. And any factual claim
+          the script leans on that nothing has checked.</p></div>
+      <div class="card"><h3>Not a build log</h3>
+        <p>Earlier versions narrated every stage — which hook won, words per minute, what
+          the stock libraries lacked. None of it was actionable.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner split narrow">
+    <div>
+      <p class="eyebrow slate reveal">Quality · footage</p>
+      <h2 class="reveal">Shots are judged against the narration</h2>
+      <p class="reveal">Not against the shot description — because <em>we wrote that too</em>.
+        A beat whose line was “you don't have to be high up to die falling off a ladder”
+        carried the intent “a worker on a low stepladder”, and the finished video contained
+        no danger at all. Every check passed. Everything was consistent with the intent.</p>
+      <p class="reveal">So candidates are scored against the words actually spoken over them,
+        and anything that cannot clear the bar walks a fallback ladder ending in a designed
+        card. Off-topic stock can never ship.</p>
+    </div>
+    <figure class="reveal">
+      <img src="media/contact-sheet.jpg" alt="Contact sheet of stock video candidates for one beat"
+           style="width:100%;border-radius:10px;border:1px solid var(--rule)">
+      <figcaption>Candidates, judged by eye</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner split">
+    <div>
+      <p class="eyebrow slate reveal">Quality · truth</p>
+      <h2 class="reveal">The script says what it cannot prove</h2>
+      <p class="reveal">Every mechanical check is about <em>mechanics</em> — duration, sync,
+        black frames. Nothing looked at whether the script was true, and a wrong number in a
+        safety video is worse than a dull one.</p>
+      <p class="reveal">So every assertion is recorded with its provenance, and a beat that
+        asserts something the ledger never mentions is a blocker. It verifies nothing. It
+        makes the assertion <strong>visible at the gate</strong>, while changing it is still free.</p>
+    </div>
+    <pre class="reveal"><span class="c">// the ledger</span>
+{
+  <span class="k">"text"</span>: <span class="s">"one foot out for
+           every four feet up"</span>,
+  <span class="k">"status"</span>: <span class="s">"established"</span>,
+  <span class="k">"source"</span>: <span class="s">"29 CFR 1926.1053
+             (b)(5)(i)"</span>
+}
+
+<span class="c">established · contested</span>
+<span class="c">estimate · unverified</span>
+<span class="c">illustrative</span></pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner">
+    <p class="eyebrow slate reveal">Quality · staleness</p>
+    <h2 class="reveal">Cached on their inputs, not their existence</h2>
+    <p class="lead reveal">Every expensive stage skipped its work if the output file was
+      already there. Right for a retry. Wrong for iterating in place — which is how the
+      tool is actually used.</p>
+    <div class="cols reveal" style="margin-top:1.8rem">
+      <div class="card">
+        <h3 style="color:var(--bad)">It shipped twice</h3>
+        <p>A re-narrated script kept the previous presenter, lip-syncing to words that no
+          longer existed. The same re-narration kept the old caption layer — 25.2s of
+          captions over 39.1s of audio.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--ok)">Neither failed</h3>
+        <p>Both rendered cleanly and both passed grading. Every artifact now records a
+          fingerprint of what it was built from and rebuilds when that changes.</p>
+      </div>
+      <div class="card">
+        <h3>And a backstop</h3>
+        <p>Grading blocks if any timed layer disagrees with the narration. They are cut
+          from the same timestamps, so one differing means a different script built it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner split narrow">
+    <div>
+      <p class="eyebrow slate reveal">Quality · the render</p>
+      <h2 class="reveal">What a machine can check, and what it can't</h2>
+      <p class="reveal">Grading samples frames and measures what is measurable: duration,
+        resolution, dead air, repeated footage, black frames, captions colliding with the
+        presenter, layers out of sync.</p>
+      <p class="reveal">Then it says so plainly — <em>the mechanical pass cannot tell you
+        whether it is engaging</em> — and hands the frames back for a human to score against
+        the rubric. The last call is never the tool's.</p>
+    </div>
+    <figure class="reveal">
+      <img src="media/frame-diagram.jpg" alt="A frame showing the animated 4:1 ladder-angle diagram with captions"
+           class="phone" style="object-fit:contain;background:#000">
+      <figcaption>Generated diagram, cued to the words</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner">
+    <p class="eyebrow reveal">Built for the loop</p>
+    <h2 class="reveal">Short-form autoplays, so the ending is a seam</h2>
+    <div class="scroller reveal">
+      <table>
+        <thead><tr><th>Ending</th><th class="num">Hold after last word</th><th class="num">Audio in final 0.4s</th></tr></thead>
+        <tbody>
+          <tr><td>Before</td><td class="num">0.21 – 0.32s</td><td class="num" style="color:var(--bad)">−20.7 dB · cut dead</td></tr>
+          <tr><td>After</td><td class="num" style="color:var(--gold)">0.91 – 1.00s</td><td class="num" style="color:var(--ok)">−41 to −51 dB · resolved</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="reveal" style="margin-top:1.6rem">The last frame is held and the music bed fades
+      across it, so the closing line lands and the hook has a beat before it comes round again.</p>
+    <p class="reveal muted">What it deliberately does <em>not</em> do is chase a seamless loop.
+      A human voice restarting mid-thought is always audible, and hiding the seam means giving
+      up the payoff.</p>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="inner">
+    <p class="eyebrow reveal">In practice</p>
+    <h2 class="reveal">Three topics, end to end</h2>
+    <div class="scroller reveal">
+      <table>
+        <thead><tr><th>Topic</th><th class="num">Runtime</th><th class="num">Pace</th><th class="num">Cost</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Ladder safety</td><td class="num">32.4s</td><td class="num">178 wpm</td><td class="num">$2.30</td><td class="muted">Animated 4:1 diagram</td></tr>
+          <tr><td>Lifting safety</td><td class="num">40.3s</td><td class="num">164 wpm</td><td class="num">$2.75</td><td class="muted">Contested claim surfaced at the gate</td></tr>
+          <tr><td>Supra vs GT-R</td><td class="num">37.5s</td><td class="num">170 wpm</td><td class="num">$2.90</td><td class="muted">Non-safety topic; claims left unverified</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="reveal" style="margin-top:1.8rem">Installed as a Claude Code plugin from GitHub.
+      Needs a HeyGen key and ffmpeg; everything else degrades to a designed graphic rather
+      than a wrong shot.</p>
+    <pre class="reveal" style="margin-top:.4rem;max-width:640px">/plugin marketplace add asprouse/quinn-video-skill
+<span class="c">then:</span> /quinn:video ladder safety</pre>
+  </div>
+</section>
+
+</div>
+
+<div class="hud"><b id="bar"></b></div>
+<div class="count"><b id="cur">1</b> / <span id="tot">12</span></div>
+<div class="hint" id="hint"><kbd>↑</kbd> <kbd>↓</kbd> to move</div>
+
+<script>
+const deck = document.getElementById('deck');
+const slides = [...document.querySelectorAll('.slide')];
+const bar = document.getElementById('bar');
+const cur = document.getElementById('cur');
+document.getElementById('tot').textContent = slides.length;
+
+let index = 0;
+const io = new IntersectionObserver(entries => {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue;
+    e.target.classList.add('on');
+    index = slides.indexOf(e.target);
+    cur.textContent = index + 1;
+    bar.style.width = ((index + 1) / slides.length * 100) + '%';
+  }
+}, {threshold: 0.55});
+slides.forEach(s => io.observe(s));
+
+function go(n) {
+  index = Math.max(0, Math.min(slides.length - 1, n));
+  slides[index].scrollIntoView({behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth'});
+}
+addEventListener('keydown', e => {
+  if (e.target.matches('video, input, textarea')) return;
+  const fwd = ['ArrowDown','ArrowRight','PageDown',' '];
+  const back = ['ArrowUp','ArrowLeft','PageUp'];
+  if (fwd.includes(e.key)) { e.preventDefault(); go(index + 1); }
+  else if (back.includes(e.key)) { e.preventDefault(); go(index - 1); }
+  else if (e.key === 'Home') { e.preventDefault(); go(0); }
+  else if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+});
+
+const hint = document.getElementById('hint');
+setTimeout(() => { hint.style.opacity = '0'; }, 4200);
+</script>
