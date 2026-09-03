@@ -199,10 +199,10 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
   <div class="inner split">
     <div>
       <p class="eyebrow reveal">What it produces</p>
-      <h2 class="reveal">Ladder safety, start to finish</h2>
-      <p class="reveal">Written, narrated, presented, shot, cut, captioned and scored
-        without a human touching a timeline. The only human input was approving the
-        script.</p>
+      <h2 class="reveal">The input was two words</h2>
+      <p class="reveal">Someone typed <em>ladder safety</em> and approved a script. Everything
+        else — the writing, the voice, the presenter, the footage, the cuts, the captions,
+        the music — was assembled without anyone touching a timeline.</p>
       <div class="cols reveal" style="margin-top:2rem">
         <div class="metric"><div class="big">32s</div><div class="label">runtime</div></div>
         <div class="metric"><div class="big">$2.30</div><div class="label">to produce</div></div>
@@ -217,8 +217,8 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
   </div>
 </section><section class="slide">
   <div class="inner">
-    <p class="eyebrow reveal">What you get</p>
-    <h2 class="reveal">Six things, assembled for you</h2>
+    <p class="eyebrow reveal">Composition</p>
+    <h2 class="reveal">Six layers, composited — never edited</h2>
     <div class="feat reveal">
       <div><span class="k">presenter</span><h3>Someone on screen, talking</h3>
         <p>A lip-synced presenter sitting in the shot rather than in a box beside it.
@@ -235,32 +235,32 @@ kbd{border:1px solid var(--rule);border-radius:4px;padding:.05rem .35rem;color:v
       <div><span class="k slate">sound</span><h3>Music that stays behind the voice</h3>
         <p>A bed matched to the subject that lifts the energy between sentences without
           ever competing with the narrator.</p></div>
-      <div><span class="k slate">scorecard</span><h3>A second opinion on every render</h3>
-        <p>A report beside the video saying what it checked, what it found, and plainly
-          what it is not able to judge.</p></div>
+      <div><span class="k slate">staging</span><h3>The presenter gets out of the way</h3>
+        <p>Full frame for the opening line, then down into the corner so the footage can do
+          the work, and back up when the payoff lands.</p></div>
     </div>
   </div>
 </section>
 
 <section class="slide">
   <div class="inner">
-    <p class="eyebrow reveal">In practice</p>
-    <h2 class="reveal">Three topics, end to end</h2>
-    <div class="scroller reveal">
+    <p class="eyebrow reveal">Range</p>
+    <h2 class="reveal">It is not a safety-video tool</h2>
+    <p class="lead reveal">The same pipeline, unchanged, across three subjects that have
+      nothing in common. Nothing about it is specialised to a domain.</p>
+    <div class="scroller reveal" style="margin-top:1.4rem">
       <table>
-        <thead><tr><th>Topic</th><th class="num">Runtime</th><th class="num">Pace</th><th class="num">Cost</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Topic</th><th class="num">Runtime</th><th class="num">Pace</th><th>What was different</th></tr></thead>
         <tbody>
-          <tr><td>Ladder safety</td><td class="num">32.4s</td><td class="num">178 wpm</td><td class="num">$2.30</td><td class="muted">Animated 4:1 diagram</td></tr>
-          <tr><td>Lifting safety</td><td class="num">40.3s</td><td class="num">164 wpm</td><td class="num">$2.75</td><td class="muted">Contested claim surfaced at the gate</td></tr>
-          <tr><td>Supra vs GT-R</td><td class="num">37.5s</td><td class="num">170 wpm</td><td class="num">$2.90</td><td class="muted">Non-safety topic; claims left unverified</td></tr>
+          <tr><td>Ladder safety</td><td class="num">32.4s</td><td class="num">178 wpm</td>
+              <td class="muted">A rule about an angle, so the diagram was drawn rather than filmed</td></tr>
+          <tr><td>Lifting safety</td><td class="num">40.3s</td><td class="num">164 wpm</td>
+              <td class="muted">A disputed claim surfaced for a human before anything was spent</td></tr>
+          <tr><td>Supra vs GT-R</td><td class="num">37.5s</td><td class="num">170 wpm</td>
+              <td class="muted">No authority publishes on it, so its claims stayed marked unverified</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="reveal" style="margin-top:1.8rem">Installed as a Claude Code plugin from GitHub.
-      Needs a HeyGen key and ffmpeg; everything else degrades to a designed graphic rather
-      than a wrong shot.</p>
-    <pre class="reveal" style="margin-top:.4rem;max-width:640px">/plugin marketplace add asprouse/quinn-video-skill
-<span class="c">then:</span> /quinn:video ladder safety</pre>
   </div>
 </section><section class="slide act">
   <div class="inner">
